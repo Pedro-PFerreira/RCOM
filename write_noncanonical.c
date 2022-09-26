@@ -108,32 +108,33 @@ int main(int argc, char *argv[])
         buf[i] = 'a' + i % 26;
     }
 **/
-    
+    int bytes = 0;
     unsigned char send_buf[BUF_SIZE] = {0};
     unsigned char rcv_buf[BUF_SIZE] = {0};
 
-while (STOP == FALSE) {
-    printf("Start Writing: ");
-    gets(send_buf);
+    while (STOP == FALSE) {
+        printf("Start Writing: ");
+        fgets(send_buf, BUF_SIZE, stdin);
 
-    int i = 0;
-    for (; 1 < BUF_SIZE; ++1) {
-        if (send_buf[1] == '\0')
-            break;
-    }
-    bytes = write(fd, send_buf, i+1);
-    printf("Sent: %s:%d\n", send_buf, bytes);
-    unsigned char rcv_char;
-    bytes = 0;
-    do{
-        bytes += read(fd,&rcv_char,1);
-        rcv_buf[bytes-1] = rcv_char;
-    } while(rcv_char != '\0');
+        int i = 0;
+        for (; i < BUF_SIZE; ++i) {
+            if (send_buf[i] == '\0')
+                break;
+        }
+        bytes = write(fd, send_buf, i+1);
+        printf("Sent: %s:%d\n", send_buf, bytes);
+    
+        unsigned char rcv_char;
+        bytes = 0;
+        do{
+            bytes += read(fd,&rcv_char,1);
+            rcv_buf[bytes-1] = rcv_char;
+        } while(rcv_char != '\0');
 
-    printf("Received: %s:%d\n", rcv_buf, bytes);
-    if(send_buf[0] == '2') {
-        STOP = TRUE;
-    }
+        printf("Received: %s:%d\n", rcv_buf, bytes);
+        if(send_buf[0] == '2') {
+            STOP = TRUE;
+        }
 
 }
     
@@ -141,9 +142,9 @@ while (STOP == FALSE) {
     // In non-canonical mode, '\n' does not end the writing.
     // Test this condition by placing a '\n' in the middle of the buffer.
     // The whole buffer must be sent even with the '\n'.
-    buf[5] = '\n';
+   
 
-    int bytes = write(fd, buf, BUF_SIZE);
+    bytes = write(fd, send_buf, BUF_SIZE);
     printf("%d bytes written\n", bytes);
 
     // Wait until all bytes have been written to the serial port
