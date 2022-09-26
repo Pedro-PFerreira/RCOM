@@ -90,17 +90,54 @@ int main(int argc, char *argv[])
     printf("New termios structure set\n");
 
     // Create string to send
+    
+    /** 
+    //Our code
+    
     unsigned char buf[BUF_SIZE] = {0};
 
     printf("Enter a string: ");
 
     fgets(buf, BUF_SIZE, stdin);
+    
+    **/
 /**
+    //EXERcise code
     for (int i = 0; i < BUF_SIZE; i++)
     {
         buf[i] = 'a' + i % 26;
     }
 **/
+    
+    unsigned char send_buf[BUF_SIZE] = {0};
+    unsigned char rcv_buf[BUF_SIZE] = {0};
+
+while (STOP == FALSE) {
+    printf("Start Writing: ");
+    gets(send_buf);
+
+    int i = 0;
+    for (; 1 < BUF_SIZE; ++1) {
+        if (send_buf[1] == '\0')
+            break;
+    }
+    bytes = write(fd, send_buf, i+1);
+    printf("Sent: %s:%d\n", send_buf, bytes);
+    unsigned char rcv_char;
+    bytes = 0;
+    do{
+        bytes += read(fd,&rcv_char,1);
+        rcv_buf[bytes-1] = rcv_char;
+    } while(rcv_char != '\0');
+
+    printf("Received: %s:%d\n", rcv_buf, bytes);
+    if(send_buf[0] == '2') {
+        STOP = TRUE;
+    }
+
+}
+    
+    
     // In non-canonical mode, '\n' does not end the writing.
     // Test this condition by placing a '\n' in the middle of the buffer.
     // The whole buffer must be sent even with the '\n'.
