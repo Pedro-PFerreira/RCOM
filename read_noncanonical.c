@@ -21,6 +21,11 @@
 
 #define BUF_SIZE 256
 
+unsigned char rev_buf[BUF_SIZE + 1] = {0};
+unsigned char send_buf[BUF_SIZE + 1] = {0};
+
+int bytes = 0;
+
 volatile int STOP = FALSE;
 
 int main(int argc, char *argv[])
@@ -90,17 +95,31 @@ int main(int argc, char *argv[])
 
     // Loop for input
     unsigned char buf[BUF_SIZE + 1] = {0}; // +1: Save space for the final '\0' char
+    unsigned char rcv_buf[BUF_SIZE + 1] = {0};
+    unsigned char send_buf[BUF_SIZE + 1] = {0};
 
     while (STOP == FALSE)
     {
-        // Returns after 5 chars have been input
-        int bytes = read(fd, buf, BUF_SIZE);
-        buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
+        unsigned char rcv_char;
+        bytes = 0;
+        do{
+            bytes += read(fd, &rcv_char, 1);
+            rcv_buf[bytes-1] = rcv_char;
+        } while(rcv_char != '\0');
 
-        printf("%s:%d\n", buf, bytes);
-        if (buf[0] == 'z')
+        printf("Received: %s:%d\n", rcv_buf, bytes);
+
+        write(fd, rcv_buf, bytes);
+
+        printf("Sent: %s:%d\n", send_buf, bytes);
+
+        if (rcv_buf[0] == 'z'){
             STOP = TRUE;
+        }
+        
     }
+
+    sleep(1);
 
     // The while() cycle should be changed in order to respect the specifications
     // of the protocol indicated in the Lab guide
