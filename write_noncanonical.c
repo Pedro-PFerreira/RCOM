@@ -11,6 +11,10 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "macros.h"
+
+#include "state_machine.c"
+
 // Baudrate settings are defined in <asm/termbits.h>, which is
 // included by <termios.h>
 #define BAUDRATE B38400
@@ -22,6 +26,17 @@
 #define BUF_SIZE 256
 
 volatile int STOP = FALSE;
+
+int state = 0;
+
+
+int hasReceived(){
+    if (state != STOP_)
+        return 1;
+
+    return 0;
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -89,30 +104,24 @@ int main(int argc, char *argv[])
 
     printf("New termios structure set\n");
 
-    // Create string to send
-    
-    /** 
-    //Our code
-    
-    unsigned char buf[BUF_SIZE] = {0};
-
-    printf("Enter a string: ");
-
-    fgets(buf, BUF_SIZE, stdin);
-    
-    **/
-/**
-    //EXERcise code
-    for (int i = 0; i < BUF_SIZE; i++)
-    {
-        buf[i] = 'a' + i % 26;
-    }
-**/
     int bytes = 0;
     unsigned char send_buf[BUF_SIZE] = {0};
     unsigned char rcv_buf[BUF_SIZE] = {0};
 
+    rcv_buf[0] = FLAG_RCV;
+    rcv_buf[1] = A_RCV;
+    rcv_buf[2] = C_RCV;
+    rcv_buf[3] = A_RCV ^ C_RCV;
+    rcv_buf[4] = FLAG_RCV;
+
+    int attempt = 0;
+
+    int fail = 0;
     while (STOP == FALSE) {
+        attempt++;
+        alarm(3);
+
+        state = START;
         printf("Start Writing: ");
         fgets(send_buf, BUF_SIZE, stdin);
 
@@ -135,9 +144,12 @@ int main(int argc, char *argv[])
         if(send_buf[0] == '2') {
             STOP = TRUE;
         }
+        set_state(&state, rcv_buf[0]);
+        fail = hasReceived();
+
+        if (attempt == 3 && fail == 1) STOP = TRUE;
 
 }
-    
     
     // In non-canonical mode, '\n' does not end the writing.
     // Test this condition by placing a '\n' in the middle of the buffer.
