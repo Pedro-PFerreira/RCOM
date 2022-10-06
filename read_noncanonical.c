@@ -11,6 +11,9 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "macros.h"
+#include "state_machine.c"
+
 // Baudrate settings are defined in <asm/termbits.h>, which is
 // included by <termios.h>
 #define BAUDRATE B38400
@@ -19,7 +22,13 @@
 #define FALSE 0
 #define TRUE 1
 
-#define BUF_SIZE 256
+#define BUF_SIZE 255
+#define MAX_SIZE 255
+
+#define TRANSMITTER 0
+#define RECEIVER 1
+
+#define FLAG 0x010
 
 unsigned char rev_buf[BUF_SIZE + 1] = {0};
 unsigned char send_buf[BUF_SIZE + 1] = {0};
@@ -98,6 +107,8 @@ int main(int argc, char *argv[])
     unsigned char rcv_buf[BUF_SIZE + 1] = {0};
     unsigned char send_buf[BUF_SIZE + 1] = {0};
 
+    int state = START;
+
     while (STOP == FALSE)
     {
         unsigned char rcv_char;
@@ -109,18 +120,20 @@ int main(int argc, char *argv[])
 
         printf("Received: %s:%d\n", rcv_buf, bytes);
 
-        write(fd, rcv_buf, bytes);
+        set_state(&state, buf[0]);
 
-        printf("Sent: %s:%d\n", send_buf, bytes);
-
-        if (rcv_buf[0] == 'z'){
-            STOP = TRUE;
-        }
+        if (state == STOP_) STOP = TRUE;
         
     }
+    
+    rcv_buf[0] = FLAG_RCV;
+    rcv_buf[1] = A_RCV;
+    rcv_buf[2] = C_RCV;
+    rcv_buf[3] = A_RCV ^ C_RCV;
+    rcv_buf[4] = FLAG_RCV;
 
-    sleep(1);
-
+    write(fd, rcv_buf, bytes);
+    printf("Sent: %s:%d\n", send_buf, bytes);
     // The while() cycle should be changed in order to respect the specifications
     // of the protocol indicated in the Lab guide
 
