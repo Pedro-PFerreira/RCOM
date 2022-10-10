@@ -8,8 +8,6 @@
 #define BCC_OK 4
 #define STOP_ 6
 
-#define FLAG_RCV 0b01111110
-
 void set_state(int state, int flag);
 
 #endif
