@@ -1,4 +1,5 @@
 #include "state_machine.h"
+#include "macros.h"
 
 void set_state(int state, int flag){
     switch (state)

@@ -15,7 +15,11 @@ int llopen(LinkLayer connectionParameters)
     int state = 0;
     set_state(state, FLAG_RCV);
 
-    return 1;
+    if (connectionParameters.role == LlRx) return 0;
+
+    else if (connectionParameters.role == LlTx) return 1;
+
+    else return 2;
 }
 
 ////////////////////////////////////////////////
@@ -28,20 +32,27 @@ int llwrite(const unsigned char *buf, int bufSize)
     return 0;
 }
 
-int stuff(int block){
+unsigned char stuff(unsigned char * block){
 
-    int res = 0x0000;
-    if (block == FLAG){
-        block = block ^ STUFFER;
+    unsigned char res = 0x0000;
+    if (*block == FLAG){
+        *block = *block ^ STUFFER;
         res |= ESC;
-        res |= (block & 0x00FF);
+        res |= (*block & 0x00FF);
     }
     else if (block == ESC){
-        res |= (block ^ STUFFER);
+        res |= (*block ^ STUFFER);
     }
 
     return res;
 
+}
+
+unsigned char destuff(unsigned char * block){
+
+    unsigned char res= 0x0000;
+    res |= (*block ^STUFFER);
+    return res;
 }
 
 ////////////////////////////////////////////////
@@ -49,9 +60,24 @@ int stuff(int block){
 ////////////////////////////////////////////////
 int llread(unsigned char *packet)
 {
+    *packet = stuff(packet);
+
+    int packet_sz = *packet / sizeof(unsigned char);
+
+    *packet = destuff(packet);
+    
+    if (packet_sz > MAX_SIZE) {
+        printf("Can't read packet!\n");
+        return 1;
+    }
+    unsigned char buf[packet_sz - 1];
+
+    for (int i = 0; i < packet_sz; i++){
+        packet[i]= buf[i];
+    }
     
 
-    return 0;
+    return packet_sz;
 }
 
 ////////////////////////////////////////////////
