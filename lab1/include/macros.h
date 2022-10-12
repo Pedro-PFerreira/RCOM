@@ -6,5 +6,6 @@
 #define FLAG_STUFFED 0X5E
 #define ESC 0x7D
 #define STUFFER 0x20
+#define MAX_SIZE 256
 
 #endif
