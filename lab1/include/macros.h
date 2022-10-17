@@ -7,5 +7,7 @@
 #define ESC 0x7D
 #define STUFFER 0x20
 #define MAX_SIZE 256
+#define TRUE 0
+#define FALSE 1
 
 #endif
