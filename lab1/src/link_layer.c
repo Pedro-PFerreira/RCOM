@@ -3,23 +3,32 @@
 #include "link_layer.h"
 #include "state_machine.h"
 #include "macros.h"
+#include "alarm.c"
 
-// MISC
 #define _POSIX_SOURCE 1 // POSIX compliant source
+// MISC
+
+int state = 0;
+char* filename;
+int nTries = 0;
+
+int llopent(int fd){
+    //TODO
+}
+
+int llopenr(int fd){
+    //TODO
+}
 
 ////////////////////////////////////////////////
 // LLOPEN
 ////////////////////////////////////////////////
 int llopen(LinkLayer connectionParameters)
 {   
-    int state = 0;
+
     set_state(state, FLAG_RCV);
 
-    if (connectionParameters.role == LlRx) return 0;
-
-    else if (connectionParameters.role == LlTx) return 1;
-
-    else return 2;
+    
 }
 
 ////////////////////////////////////////////////
@@ -85,7 +94,7 @@ int llread(unsigned char *packet)
 ////////////////////////////////////////////////
 int llclose(int showStatistics)
 {
-    // TODO
+    set_state(state, START);
 
     return 1;
 }
