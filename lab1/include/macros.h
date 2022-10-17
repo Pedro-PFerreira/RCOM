@@ -10,4 +10,9 @@
 #define TRUE 0
 #define FALSE 1
 
+#define _POSIX_SOURCE 1 // POSIX compliant source
+// MISC
+
+#define BAUDRATE B38400
+
 #endif
