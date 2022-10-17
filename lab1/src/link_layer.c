@@ -75,8 +75,13 @@ int llopen(LinkLayer connectionParameters)
 
     int state = START;
 
+    if (connectionParameters.role == LlRx){
+        //TODO
+    }
 
-    write(fd, rcv_buf, bytes);
+    else if (connectionParameters.role == LlTx){
+        llwrite(send_buf, MAX_SIZE);
+    }
     printf("Sent: %s:%d\n", send_buf, bytes);
     // The while() cycle should be changed in order to respect the specifications
     // of the protocol indicated in the Lab guide
@@ -122,19 +127,41 @@ unsigned char destuff(unsigned char * block){
 ////////////////////////////////////////////////
 int llwrite(unsigned char *buf, int bufSize)
 {       
-    unsigned char buf[MAX_SIZE + 1] = {0};
-    unsigned char rcv_buf[MAX_SIZE + 1] = {0};
-    unsigned char send_buf[MAX_SIZE + 1] = {0};
-    rcv_buf[0] = FLAG_RCV;
-    rcv_buf[1] = A_RCV;
-    rcv_buf[2] = C_RCV;
-    rcv_buf[3] = A_RCV ^ C_RCV;
-    rcv_buf[4] = FLAG_RCV;
+    unsigned char buf1[MAX_SIZE];
 
-    for (int i = 0; i < bufSize; i++){
-        buf[i] = stuff(buf[i]);
+    int BCC_2 = buf[0];  
+
+    for (int i = 1; i < bufSize; i++){
+        BCC_2 = BCC_2 ^ buf[i];
+    }
+
+    buf1[0] = FLAG_RCV;
+    buf1[1] = A_RCV;
+    buf1[2] = C_RCV;
+    buf1[3] = A_RCV ^ C_RCV;
+
+
+    buf1[bufSize + 3] = BCC_2; 
+    buf1[bufSize + 4] = FLAG_RCV;
+
+    size_t buf1_sz = sizeof(buf1) / sizeof(buf1[0]);
+
+    for (size_t i = 0; i < buf1_sz; i++){
+        rcv_buf[i] = buf[i];
     }
     
+    size_t rcv_sz = sizeof(rcv_buf) / sizeof(rcv_buf[0]);
+
+
+
+
+
+
+    for (int i = 4; i < rcv_sz; i++){
+        send_buf[i] = stuff(buf1[i]);
+    }
+
+    write(fd, send_buf, bytes);
 
     return 0;
 }
@@ -146,26 +173,9 @@ int llwrite(unsigned char *buf, int bufSize)
 ////////////////////////////////////////////////
 int llread(unsigned char *packet)
 {
+    destuff(packet);
 
-    int packet_sz = *packet / sizeof(unsigned char);
-
-    *packet = destuff(packet);
-    
-    while(TRUE){
-        if (packet_sz > MAX_SIZE) {
-            printf("Can't read packet!\n");
-            return 1;
-        }
-        unsigned char buf[packet_sz - 1];
-
-        for (int i = 0; i < packet_sz; i++){
-            packet[i]= buf[i];
-        }
-
-        break;       
-    }
-
-    return packet_sz;
+    return 0;
 }
 
 ////////////////////////////////////////////////
