@@ -7,8 +7,8 @@
 #define ESC 0x7D
 #define STUFFER 0x20
 #define MAX_SIZE 256
-#define TRUE 0
-#define FALSE 1
+#define TRUE 1
+#define FALSE 0
 
 #define _POSIX_SOURCE 1 // POSIX compliant source
 // MISC
