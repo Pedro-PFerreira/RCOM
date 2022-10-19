@@ -5,6 +5,10 @@
 #define FLAG 0x7E
 #define FLAG_STUFFED 0X5E
 #define ESC 0x7D
+#define A_RCV 0x03
+#define A_T 0x01
+#define C_RCV 0x03
+#define UA 0x07
 #define STUFFER 0x20
 #define MAX_SIZE 256
 #define TRUE 1

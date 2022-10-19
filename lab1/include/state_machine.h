@@ -3,13 +3,13 @@
 
 #define START 0
 #define STATE_FLAG_RCV 1
-#define A_RCV 0x03
-#define A_T 0x01
-#define C_T 5
-#define C_RCV 6
-#define BCC_OK 7
-#define STOP_ 8
+#define A 2
+#define C 3
+#define BCC_OK 4
+#define STOP_ 5
 
-void set_state(int state, int flag);
+void set_state(int fd, unsigned char flag);
+
+void set_stateT(int state*, unsigned char* flag);
 
 #endif
