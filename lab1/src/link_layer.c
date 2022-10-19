@@ -82,35 +82,47 @@ int llopen(LinkLayer connectionParameters)
     printf("New termios structure set\n");
    
     if (connectionParameters.role == LlRx){
-
-        alarmEnabled = TRUE;
+        set_state(fd, C_RCV);
         unsigned char* ua[5];
         ua[0] = FLAG_RCV;
-        ua[1] = A_T;
-        ua[2] = C_T;
-        ua[3] = A_T ^ C_T;
+        ua[1] = A_RCV;
+        ua[2] = C_RCV;
+        ua[3] = ua[1] ^ua[2];
         ua[4] = FLAG_RCV;
 
         if (write(fd, ua, 5) < 0) return -1;
-        sleep(1);
-        for (int i = 0; i < MAX_SIZE; i++){
-            llread(rcv_buf[i]);
-        }
+        
     }
 
 
     else if (connectionParameters.role == LlTx){
-        unsigned char * set[5];
-        set[0] = FLAG_RCV;
-        set[1] = A_T;
-        set[2] = C_T;
-        set[3] = A_RCV ^ C_RCV;
-        set[4] = FLAG_RCV;
-        
-        if (write(fd, set, 5) < 0) return -1;
-        sleep(1);
-        llwrite(send_buf, MAX_SIZE);
+        do{
+            unsigned char f;
+            unsigned char * set[5];
+            set[0] = FLAG_RCV;
+            set[1] = A_T;
+            set[2] = C_T;
+            set[3] = set[1] ^ set[2];
+            set[4] = FLAG_RCV;
+            if (write(fd, set, 5) < 0) return -1;
 
+            alarm(3);
+            
+            while(!STOP && !alarmEnabled){
+                read(fd, &f, 1);
+                set_stateT(&fd, &f);
+            }
+        } while(alarmEnabled && alarmcount < connectionParameters.timeout)
+
+
+        if (alarmEnabled && alarmCount == 3){
+            return 0;
+        }
+        else{
+            alarmEnabled = FALSE;
+            alarmCount = 0;
+            return 1;
+        }
     }
     printf("Sent: %s:%d\n", send_buf, bytes);
     // The while() cycle should be changed in order to respect the specifications
