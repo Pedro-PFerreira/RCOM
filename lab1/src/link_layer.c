@@ -17,8 +17,8 @@ int state = 0;
 char* filename;
 int nTries = 0;
 
-unsigned char rcv_buf[MAX_SIZE + 1] = {0};
-unsigned char send_buf[MAX_SIZE + 1] = {0};
+unsigned char rcv_buf[MAX_SIZE];
+unsigned char send_buf[MAX_SIZE];
 
 int bytes = 0;
 
@@ -31,6 +31,14 @@ volatile int STOP = FALSE;
 ////////////////////////////////////////////////
 int llopen(LinkLayer connectionParameters)
 {   
+
+    int fd = open(connectionParameters.serialPort, O_RDWR | O_NOCTTY);
+
+    if (fd < 0)
+    {
+        perror(connectionParameters.serialPort);
+        exit(-1);
+    }
 
     struct termios oldtio;
     struct termios newtio;
@@ -72,15 +80,37 @@ int llopen(LinkLayer connectionParameters)
     }
 
     printf("New termios structure set\n");
-
-    int state = START;
-
+   
     if (connectionParameters.role == LlRx){
-        //TODO
+
+        alarmEnabled = TRUE;
+        unsigned char* ua[5];
+        ua[0] = FLAG_RCV;
+        ua[1] = A_T;
+        ua[2] = C_T;
+        ua[3] = A_T ^ C_T;
+        ua[4] = FLAG_RCV;
+
+        if (write(fd, ua, 5) < 0) return -1;
+        sleep(1);
+        for (int i = 0; i < MAX_SIZE; i++){
+            llread(rcv_buf[i]);
+        }
     }
 
+
     else if (connectionParameters.role == LlTx){
+        unsigned char * set[5];
+        set[0] = FLAG_RCV;
+        set[1] = A_T;
+        set[2] = C_T;
+        set[3] = A_RCV ^ C_RCV;
+        set[4] = FLAG_RCV;
+        
+        if (write(fd, set, 5) < 0) return -1;
+        sleep(1);
         llwrite(send_buf, MAX_SIZE);
+
     }
     printf("Sent: %s:%d\n", send_buf, bytes);
     // The while() cycle should be changed in order to respect the specifications
@@ -92,6 +122,7 @@ int llopen(LinkLayer connectionParameters)
         perror("tcsetattr");
         exit(-1);
     }
+
 
     llclose(fd);
 
@@ -125,7 +156,7 @@ unsigned char destuff(unsigned char * block){
 ////////////////////////////////////////////////
 // LLWRITE
 ////////////////////////////////////////////////
-int llwrite(unsigned char *buf, int bufSize)
+int llwrite(const unsigned char *buf, int bufSize)
 {       
     unsigned char buf1[MAX_SIZE];
 
@@ -140,7 +171,6 @@ int llwrite(unsigned char *buf, int bufSize)
     buf1[2] = C_RCV;
     buf1[3] = A_RCV ^ C_RCV;
 
-
     buf1[bufSize + 3] = BCC_2; 
     buf1[bufSize + 4] = FLAG_RCV;
 
@@ -153,10 +183,6 @@ int llwrite(unsigned char *buf, int bufSize)
     size_t rcv_sz = sizeof(rcv_buf) / sizeof(rcv_buf[0]);
 
 
-
-
-
-
     for (int i = 4; i < rcv_sz; i++){
         send_buf[i] = stuff(buf1[i]);
     }
@@ -166,16 +192,19 @@ int llwrite(unsigned char *buf, int bufSize)
     return 0;
 }
 
-
-
 ////////////////////////////////////////////////
 // LLREAD
 ////////////////////////////////////////////////
 int llread(unsigned char *packet)
 {
-    destuff(packet);
+    *packet = destuff(packet);
+
+    if (*packet == NULL){
+        alarmHandler;
+    }
 
     return 0;
+    
 }
 
 ////////////////////////////////////////////////
@@ -183,7 +212,6 @@ int llread(unsigned char *packet)
 ////////////////////////////////////////////////
 int llclose(int showStatistics)
 {
-    set_state(state, START);
 
     return 1;
 }
