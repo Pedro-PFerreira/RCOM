@@ -24,6 +24,11 @@ int bytes = 0;
 
 int fd;
 
+LinkLayerRole role;
+int numTries;
+int timeout;
+
+
 volatile int STOP = FALSE;
 
 ////////////////////////////////////////////////
@@ -82,12 +87,15 @@ int llopen(LinkLayer connectionParameters)
     printf("New termios structure set\n");
    
     if (connectionParameters.role == LlRx){
+        role = LlRx;
+        numTries = connectionParameters.nRetransmissions;
+        timeout = connectionParameters.timeout;
         set_state(fd, C_RCV);
         unsigned char* ua[5];
         ua[0] = FLAG_RCV;
         ua[1] = A_RCV;
         ua[2] = C_RCV;
-        ua[3] = ua[1] ^ua[2];
+        ua[3] = ua[1] ^ ua[2];
         ua[4] = FLAG_RCV;
 
         if (write(fd, ua, 5) < 0) return -1;
@@ -97,6 +105,9 @@ int llopen(LinkLayer connectionParameters)
 
     else if (connectionParameters.role == LlTx){
         do{
+            role = LlRx;
+            numTries = connectionParameters.nRetransmissions;
+            timeout = connectionParameters.timeout;
             unsigned char f;
             unsigned char * set[5];
             set[0] = FLAG_RCV;
@@ -106,13 +117,13 @@ int llopen(LinkLayer connectionParameters)
             set[4] = FLAG_RCV;
             if (write(fd, set, 5) < 0) return -1;
 
-            alarm(3);
+            alarm(0);
             
             while(!STOP && !alarmEnabled){
                 read(fd, &f, 1);
                 set_stateT(&fd, &f);
             }
-        } while(alarmEnabled && alarmcount < connectionParameters.timeout)
+        } while(alarmEnabled && alarmCount < connectionParameters.timeout);
 
 
         if (alarmEnabled && alarmCount == 3){
@@ -169,7 +180,16 @@ unsigned char destuff(unsigned char * block){
 // LLWRITE
 ////////////////////////////////////////////////
 int llwrite(const unsigned char *buf, int bufSize)
-{       
+{   
+
+    if (buf == NULL || bufSize < 0){
+        return -1;
+    }
+
+    if (bufSize > MAX_PAYLOAD_SIZE){
+        return -1;
+    }
+
     unsigned char buf1[MAX_SIZE];
 
     int BCC_2 = buf[0];  
@@ -209,6 +229,14 @@ int llwrite(const unsigned char *buf, int bufSize)
 ////////////////////////////////////////////////
 int llread(unsigned char *packet)
 {
+    if (packet == NULL){
+        return -1;
+    }
+
+    alarm(3);
+
+
+
     *packet = destuff(packet);
 
     if (*packet == NULL){
@@ -224,6 +252,20 @@ int llread(unsigned char *packet)
 ////////////////////////////////////////////////
 int llclose(int showStatistics)
 {
+    unsigned char* frame_disc[5];
+    int num_send_frame = 0;
+    timeout = TRUE;
+    if (role == LlTx){
+        do{
+            if (write(fd, frame_disc, 5) == -1){
+                return -1;
+            }
+            num_send_frame++;
+            timeout == FALSE;
+
+        }while(num_send_frame < numTries|| !timeout);      
+        alarm(num_send_frame);
+    }
 
     return 1;
 }

@@ -75,7 +75,7 @@ void set_state_r(int fd, unsigned char flag){
     }
 }
 
-void set_state_machineT(int *state, unsigned char* flag){
+void set_stateT(int *state, unsigned char* flag){
     switch (*state)
         {
         case START:
