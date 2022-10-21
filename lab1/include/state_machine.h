@@ -10,6 +10,6 @@
 
 void set_state(int fd, unsigned char flag);
 
-void set_stateT(int state*, unsigned char* flag);
+void set_stateT(int * state, unsigned char* flag);
 
 #endif

@@ -6,8 +6,9 @@
 #define FLAG_STUFFED 0X5E
 #define ESC 0x7D
 #define A_RCV 0x03
+#define C_RCV 0x07
 #define A_T 0x01
-#define C_RCV 0x03
+#define C_T 0x01
 #define UA 0x07
 #define STUFFER 0x20
 #define MAX_SIZE 256
