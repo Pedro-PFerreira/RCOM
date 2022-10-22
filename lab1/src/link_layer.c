@@ -13,7 +13,7 @@
 #include <termios.h>
 #include <unistd.h>
 
-int state = 0;
+int state = START;
 char* filename;
 int nTries = 0;
 
@@ -29,8 +29,11 @@ int numTries;
 int timeout;
 
 
+
 volatile int STOP = FALSE;
 
+struct termios oldtio;
+struct termios newtio;
 ////////////////////////////////////////////////
 // LLOPEN
 ////////////////////////////////////////////////
@@ -45,8 +48,7 @@ int llopen(LinkLayer connectionParameters)
         exit(-1);
     }
 
-    struct termios oldtio;
-    struct termios newtio;
+
 
     // Save current port settings
     if (tcgetattr(fd, &oldtio) == -1)
@@ -95,7 +97,7 @@ int llopen(LinkLayer connectionParameters)
         ua[0] = FLAG_RCV;
         ua[1] = A_RCV;
         ua[2] = C_RCV;
-        ua[3] = ua[1] ^ ua[2];
+        ua[3] = A_RCV ^ C_RCV; // ua[1] ^ ua[2]
         ua[4] = FLAG_RCV;
 
         if (write(fd, ua, 5) < 0) return -1;
@@ -113,7 +115,7 @@ int llopen(LinkLayer connectionParameters)
             set[0] = FLAG_RCV;
             set[1] = A_T;
             set[2] = C_T;
-            set[3] = set[1] ^ set[2];
+            set[3] = A_T ^ C_T;
             set[4] = FLAG_RCV;
             if (write(fd, set, 5) < 0) return -1;
 
@@ -229,43 +231,172 @@ int llwrite(const unsigned char *buf, int bufSize)
 ////////////////////////////////////////////////
 int llread(unsigned char *packet)
 {
+    
     if (packet == NULL){
         return -1;
     }
 
+    int read_llr;
+    unsigned char* frame_set[5], frame_ua[5];
     alarm(3);
-
-
-
+    timeout = FALSE;
+    int num_send_frame = 0;
+    int num_rec_frame = 0;
+    int num_rej_frame = 0;
+    
     *packet = destuff(packet);
 
     if (*packet == NULL){
         alarmHandler;
     }
 
-    return 0;
+    while(TRUE)
+    {
+        if(timeout == TRUE)
+        {
+            timeout = FALSE;
+            alarm(0);
+            printf("Receiving timeout");
+            break;
+            
+        }
+        if(read(fd, frame_set,5) == -1)
+        {
+            return -1;
+        }
+        if(frame_set[1] == A_T && frame_set[2] == C_T) // ?
+        {
+            if(write(fd, frame_set,5) == -1)
+            {
+            return -1;
+            }
+            num_send_frame++;
+            continue;
+        }
+        
+        else if(frame_set[1] == A_RCV && frame_set[2] == C_RCV) // ?
+        {
+            num_rec_frame++;
+            if(read(fd,frame_set,5) == -2) // The frame is incorrect
+            {
+                if(write(fd,frame_set,5) == -1){
+                    return -1;
+                }
+                num_rej_frame++;
+                continue;
+            }
+            if(write(fd,frame_set,5) == -1)
+            {
+                return -1;
+            }
+        }    
+    }
     
+    return -1;
 }
-
 ////////////////////////////////////////////////
 // LLCLOSE
 ////////////////////////////////////////////////
 int llclose(int showStatistics)
 {
-    unsigned char* frame_disc[5];
-    int num_send_frame = 0;
-    timeout = TRUE;
+
     if (role == LlTx){
+       unsigned char* frame_disc[5], frame_ua[5];
+        int num_send_frame = 0;
+        timeout = TRUE;
+        int received_disc = FALSE;
         do{
             if (write(fd, frame_disc, 5) == -1){
                 return -1;
             }
             num_send_frame++;
             timeout == FALSE;
+            alarm(num_send_frame);
+
+            if (read(fd, &frame_disc, 5) == 0){
+                received_disc == TRUE;
+            }
 
         }while(num_send_frame < numTries|| !timeout);      
-        alarm(num_send_frame);
+        alarm(0);
+
+        if (!received_disc){
+            if (tcsetattr(fd, TCSANOW, &oldtio) == -1){           
+                return -1;
+            }
+            set_stateT(fd, STOP_);
+            return -1;
+        }   
+        if (write(fd, &frame_ua,5) == -1){
+            set_stateT(fd, STOP_);
+            return -1;
+        }
     }
+
+    else if (role == LlRx){
+        unsigned char* frame_disc[5], frame_ua[5];
+        int num_send_frame = 0;
+        timeout = FALSE;
+        int received_disc = FALSE;
+        int read_r;
+        (void)signal(SIGALRM, alarmHandler);
+
+        alarm(numTries * timeout);
+
+        do{
+            read_r = read(fd,&frame_disc, 5);
+            if (read_r == -1){continue;}
+            if (*frame_disc[1] == A_RCV && *frame_disc[2] == C_RCV){
+                if (*frame_disc == NULL){
+                    total_received_frames++;
+                }
+                if(write(fd, frame_disc, 5) == -1){
+                    
+                    return -1;
+                } 
+                total_received_frames++;
+                continue;               
+            }
+            if(timeout == TRUE){
+                alarm(0);
+                return -1;
+            }
+
+        } while(!timeout);
+
+        do{
+
+            if (timeout && num_send_frame < numTries){
+                if (write(fd, frame_disc,5) == -1){
+                    return -1;
+                }
+            }
+            if (num_send_frame != 0){
+                total_timeouts++;
+                total_retransmits++;
+            }
+            num_send_frame++;
+            timeout = FALSE;
+            alarm(timeout);
+            read(fd,&frame_ua, 5);
+        }while(num_send_frame < numTries);
+
+        alarm(0);
+    }
+    
+    else{return -1;}
+    if (tcsetattr(fd, TCSANOW, &oldtio) == -1){
+        return -1;
+    }
+    set_state(fd, STOP_);
+
+    if (showStatistics == 1){
+            printf("====Statistics====\n");
+            printf("Number of retransmitted frames: %d\n", total_retransmits);
+            printf("Number of received I frames: %d\n", total_received_frames);
+            printf("Number of timeouts: %d\n", total_timeouts);
+            printf("Number of sent REJs: %d\n", total_rej);
+        }
 
     return 1;
 }
