@@ -1,9 +1,9 @@
 // Link layer protocol implementation
 
-#include "link_layer.h"
-#include "state_machine.h"
-#include "macros.h"
-#include "alarm.c"
+#include "../include/link_layer.h"
+#include "../include/state_machine.h"
+#include "../include/macros.h"
+#include "../include/alarm.c"
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
