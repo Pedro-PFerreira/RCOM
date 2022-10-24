@@ -1,5 +1,3 @@
-#include "state_machine.h"
-#include "macros.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +6,8 @@
 #include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
+#include "../include/state_machine.h"
+#include "../include/macros.h"
 
 void set_state_r(int fd, unsigned char flag){
     unsigned char f;
