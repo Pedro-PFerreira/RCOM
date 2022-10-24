@@ -8,9 +8,9 @@
 #include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
-#include "application_layer.h"
-#include "link_layer.h"
-#include "macros.h"
+#include "../include/application_layer.h"
+#include "../include/link_layer.h"
+#include "../include/macros.h"
 
 int fd;
 
