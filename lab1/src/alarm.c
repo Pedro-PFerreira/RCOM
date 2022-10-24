@@ -10,26 +10,41 @@
 int alarmEnabled = FALSE;
 int alarmCount = 0;
 
+int RECEIVED = FALSE;
+
 // Alarm function handler
 void alarmHandler(int signal)
 {
     alarmEnabled = FALSE;
+
+    if (RECEIVED == TRUE)
+        return;
+
     alarmCount++;
 
     printf("Alarm #%d\n", alarmCount);
 }
 
-int main()
+int createAlarm()
 {
     // Set alarm function handler
     (void)signal(SIGALRM, alarmHandler);
 
-    while (alarmCount < 4)
+    while (alarmCount < 4 && RECEIVED == FALSE)
     {
         if (alarmEnabled == FALSE)
         {
             alarm(3); // Set alarm to be triggered in 3s
             alarmEnabled = TRUE;
+            /*
+            //write(set);
+
+            //int bytes=read(ua);
+
+            if (bytes>0)
+                RECEIVED = TRUE;
+
+*/
         }
     }
 
