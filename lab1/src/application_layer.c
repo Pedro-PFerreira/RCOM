@@ -21,10 +21,10 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 {
 
     strcpy(layer.serialPort, serialPort);
-    if (role == "tx"){
+    if (strcmp(role,"tx") == 0){
         layer.role = LlTx;
     }
-    else if(role == "rx"){
+    else if(strcmp(role,"rx") == 0){
         layer.role = LlRx;
     }
 
@@ -32,7 +32,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     layer.nRetransmissions = nTries;
     layer.timeout = timeout;
 
-    unsigned char buffer[MAX_PAYLOAD_SIZE];
+    unsigned char buffer[MAX_PAYLOAD_SIZE+ 1];
 
     buffer[0] = FLAG;
     buffer[1] = ESC;
@@ -40,11 +40,10 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
     unsigned char I[sizeof(buffer) * 2 + 6];
     unsigned char bytes_sent;
-    int showStatistics;
 
     fd = llopen(layer);
 
-    if (fd = -1){
+    if (fd == -1){
         printf("Connection failed\n");
         return;
     }
@@ -69,11 +68,12 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             }
 
             else if (bytes_read > 0){
-                bytes_written = llwrite(buffer, bytes_read + 3);
+                bytes_written = llwrite(I, bytes_read + 3);
                 if(bytes_written == -1 || bytes_written != bytes_read + 3){
                     break;
                 }
-                total_frames_sent += bytes_read;
+                bytes_sent++;
+                total_frames_sent += bytes_sent;
 
                 printf("Read from file (%d) -> Write to link layer (%d), Total bytes sent: %d\n",
                         bytes_read, bytes_written, total_frames_sent);
@@ -111,7 +111,6 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                 printf("Read from file (%d) -> Write to link layer (%d), Total bytes sent: %d\n",
                         bytes_read, bytes_written, total_frames_sent);
             }
-
 
             else if(bytes_read == 0){
                 break;

@@ -28,8 +28,6 @@ LinkLayerRole role;
 int numTries;
 int timeout;
 
-
-
 volatile int STOP = FALSE;
 
 struct termios oldtio;
@@ -94,11 +92,11 @@ int llopen(LinkLayer connectionParameters)
         timeout = connectionParameters.timeout;
         set_state(fd, C_RCV);
         unsigned char* ua[5];
-        ua[0] = FLAG_RCV;
-        ua[1] = A_RCV;
-        ua[2] = C_RCV;
-        ua[3] = A_RCV ^ C_RCV; // ua[1] ^ ua[2]
-        ua[4] = FLAG_RCV;
+        *ua[0] = FLAG_RCV;
+        *ua[1] = A_RCV;
+        *ua[2] = C_RCV;
+        *ua[3] = A_RCV ^ C_RCV; // ua[1] ^ ua[2]
+        *ua[4] = FLAG_RCV;
 
         if (write(fd, ua, 5) < 0) return -1;
         
@@ -112,11 +110,11 @@ int llopen(LinkLayer connectionParameters)
             timeout = connectionParameters.timeout;
             unsigned char f;
             unsigned char * set[5];
-            set[0] = FLAG_RCV;
-            set[1] = A_T;
-            set[2] = C_T;
+            *set[0] = FLAG_RCV;
+            *set[1] = A_T;
+            *set[2] = C_T;
             set[3] = A_T ^ C_T;
-            set[4] = FLAG_RCV;
+            *set[4] = FLAG_RCV;
             if (write(fd, set, 5) < 0) return -1;
 
             alarm(0);
@@ -163,7 +161,7 @@ unsigned char stuff(unsigned char * block){
         res |= ESC;
         res |= (*block & 0x00FF);
     }
-    else if (block == ESC){
+    else if (*block == ESC){
         res |= (*block ^ STUFFER);
     }
 
@@ -192,6 +190,7 @@ int llwrite(const unsigned char *buf, int bufSize)
         return -1;
     }
 
+
     unsigned char buf1[MAX_SIZE];
 
     int BCC_2 = buf[0];  
@@ -200,13 +199,23 @@ int llwrite(const unsigned char *buf, int bufSize)
         BCC_2 = BCC_2 ^ buf[i];
     }
 
-    buf1[0] = FLAG_RCV;
-    buf1[1] = A_RCV;
-    buf1[2] = C_RCV;
-    buf1[3] = A_RCV ^ C_RCV;
+    if (role == LlRx){
+        buf1[0] = FLAG_RCV;
+        buf1[1] = A_RCV;
+        buf1[2] = C_RCV;
+        buf1[3] = A_RCV ^ C_RCV;
+        buf1[bufSize + 3] = BCC_2; 
+        buf1[bufSize + 4] = FLAG_RCV;
+    }
 
-    buf1[bufSize + 3] = BCC_2; 
-    buf1[bufSize + 4] = FLAG_RCV;
+    else if (role == LlTx){
+        buf1[0] = FLAG_RCV;
+        buf1[1] = A_T;
+        buf1[2] = C_T;
+        buf1[3] = A_T ^ C_T;
+        buf1[bufSize + 3] = BCC_2; 
+        buf1[bufSize + 4] = FLAG_RCV;
+    }
 
     size_t buf1_sz = sizeof(buf1) / sizeof(buf1[0]);
 
@@ -218,12 +227,63 @@ int llwrite(const unsigned char *buf, int bufSize)
 
 
     for (int i = 4; i < rcv_sz; i++){
-        send_buf[i] = stuff(buf1[i]);
+        send_buf[i] = stuff(&buf1[i]);
     }
 
-    write(fd, send_buf, bytes);
+    int send_count = 0;
+    timeout = TRUE;
+    int has_received = FALSE;
 
-    return 0;
+    do{
+        if (timeout && send_count < numTries){
+            size_t buf1_sz = sizeof(buf1) / sizeof(buf1[0]);
+
+            for (size_t i = 0; i < buf1_sz; i++){
+                rcv_buf[i] = buf[i];
+            }
+            
+            size_t rcv_sz = sizeof(rcv_buf) / sizeof(rcv_buf[0]);
+
+
+            for (int i = 4; i < rcv_sz; i++){
+                send_buf[i] = stuff(&buf1[i]);
+            }
+
+            write(fd, send_buf, bytes);
+            if (fd == -1) return -1;
+
+            else if(fd != 0){
+                total_timeouts++;
+                total_retransmits++;
+            }
+            send_count++;
+            printf("\tAttempt: %d\n",send_count);
+
+            timeout= FALSE;
+            alarm(timeout);
+
+            if (read(fd, rcv_buf, MAX_SIZE) == 1 && rcv_buf[1] == A_RCV){
+
+                if (rcv_buf[2] == C_RCV){
+                    has_received = TRUE;
+                    break;
+                }         
+
+                else{
+                    timeout = TRUE;
+                    send_count = 0;
+                    total_retransmits++;
+                    continue;
+                }          
+            }
+        }
+    }while(send_count < numTries || !timeout);
+
+    alarm(0);
+
+    if (!has_received) return -1;
+
+    return bufSize;
 }
 
 ////////////////////////////////////////////////
@@ -236,7 +296,6 @@ int llread(unsigned char *packet)
         return -1;
     }
 
-    int read_llr;
     unsigned char* frame_set[5], frame_ua[5];
     alarm(3);
     timeout = FALSE;
@@ -246,8 +305,8 @@ int llread(unsigned char *packet)
     
     *packet = destuff(packet);
 
-    if (*packet == NULL){
-        alarmHandler;
+    if (packet == NULL){
+        alarmHandler(TRUE);
     }
 
     while(TRUE)
@@ -264,9 +323,9 @@ int llread(unsigned char *packet)
         {
             return -1;
         }
-        if(frame_set[1] == A_T && frame_set[2] == C_T) // ?
+        if(*frame_set[0] == A_T && *frame_set[1] == C_T)
         {
-            if(write(fd, frame_set,5) == -1)
+            if(write(fd, frame_ua,5) == -1)
             {
             return -1;
             }
@@ -274,11 +333,12 @@ int llread(unsigned char *packet)
             continue;
         }
         
-        else if(frame_set[1] == A_RCV && frame_set[2] == C_RCV) // ?
+        else if(*frame_set[0] == A_RCV && *frame_set[1] == C_RCV)
         {
             num_rec_frame++;
             if(read(fd,frame_set,5) == -2) // The frame is incorrect
             {
+                *frame_set[0] = *frame_set[0] << 5;
                 if(write(fd,frame_set,5) == -1){
                     return -1;
                 }
@@ -310,11 +370,11 @@ int llclose(int showStatistics)
                 return -1;
             }
             num_send_frame++;
-            timeout == FALSE;
+            timeout = FALSE;
             alarm(num_send_frame);
 
             if (read(fd, &frame_disc, 5) == 0){
-                received_disc == TRUE;
+                received_disc = TRUE;
             }
 
         }while(num_send_frame < numTries|| !timeout);      
@@ -324,11 +384,11 @@ int llclose(int showStatistics)
             if (tcsetattr(fd, TCSANOW, &oldtio) == -1){           
                 return -1;
             }
-            set_stateT(fd, STOP_);
+            set_stateT(&fd, (unsigned char *) STOP_);
             return -1;
         }   
         if (write(fd, &frame_ua,5) == -1){
-            set_stateT(fd, STOP_);
+            set_stateT(&fd, (unsigned char *) STOP_);
             return -1;
         }
     }
@@ -337,7 +397,6 @@ int llclose(int showStatistics)
         unsigned char* frame_disc[5], frame_ua[5];
         int num_send_frame = 0;
         timeout = FALSE;
-        int received_disc = FALSE;
         int read_r;
         (void)signal(SIGALRM, alarmHandler);
 
