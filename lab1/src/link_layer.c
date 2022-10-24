@@ -3,7 +3,7 @@
 #include "../include/link_layer.h"
 #include "../include/state_machine.h"
 #include "../include/macros.h"
-#include "../include/alarm.c"
+#include "alarm.c"
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,6 +32,31 @@ volatile int STOP = FALSE;
 
 struct termios oldtio;
 struct termios newtio;
+
+int alarmEnabled = FALSE;
+int alarmCount = 0;
+
+
+void alarmHandler(int signal){
+    alarmEnabled == TRUE;
+    alarmCount++;
+    if (numTries >= 4){
+        printf("\nImpossble to send more data");
+        exit(1);
+    }
+
+    int res = llwrite(send_buf, MAX_SIZE);
+
+    if (res == -1){
+        return -1;
+    }
+    
+    printf("Alarm #%d\n", alarmCount);
+
+    alarm(timeout);
+}
+
+
 ////////////////////////////////////////////////
 // LLOPEN
 ////////////////////////////////////////////////
@@ -117,7 +142,7 @@ int llopen(LinkLayer connectionParameters)
             *set[4] = FLAG_RCV;
             if (write(fd, set, 5) < 0) return -1;
 
-            alarm(0);
+            (void)signal(SIGALRM, alarmHandler);
             
             while(!STOP && !alarmEnabled){
                 read(fd, &f, 1);
@@ -263,9 +288,6 @@ int llwrite(const unsigned char *buf, int bufSize)
             timeout= FALSE;
             
             (void) signal(SIGALRM, alarmHandler);
-            
-         
-            alarm(timeout);
 
             if (read(fd, rcv_buf, MAX_SIZE) == 1 && rcv_buf[1] == A_RCV){
 
@@ -284,7 +306,7 @@ int llwrite(const unsigned char *buf, int bufSize)
         }
     }while(send_count < numTries || !timeout);
 
-    alarm(0);
+    (void)signal(SIGALRM, alarmHandler);
 
     if (!has_received) return -1;
 
@@ -302,7 +324,6 @@ int llread(unsigned char *packet)
     }
 
     unsigned char* frame_set[5], frame_ua[5];
-    alarm(3);
     timeout = FALSE;
     int num_send_frame = 0;
     int num_rec_frame = 0;
@@ -370,6 +391,7 @@ int llclose(int showStatistics)
         int num_send_frame = 0;
         timeout = TRUE;
         int received_disc = FALSE;
+        (void)signal(SIGALRM, alarmHandler);
         do{
             if (write(fd, frame_disc, 5) == -1){
                 return -1;
@@ -383,8 +405,6 @@ int llclose(int showStatistics)
             }
 
         }while(num_send_frame < numTries|| !timeout); 
-        
-        (void)signal(SIGALRM, alarmHandler);
         
         alarm(0);
 
@@ -407,8 +427,6 @@ int llclose(int showStatistics)
         timeout = FALSE;
         int read_r;
         (void)signal(SIGALRM, alarmHandler);
-
-        alarm(numTries * timeout);
 
         do{
             read_r = read(fd,&frame_disc, 5);
