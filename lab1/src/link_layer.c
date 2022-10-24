@@ -235,6 +235,7 @@ int llwrite(const unsigned char *buf, int bufSize)
     int has_received = FALSE;
 
     do{
+        
         if (timeout && send_count < numTries){
             size_t buf1_sz = sizeof(buf1) / sizeof(buf1[0]);
 
@@ -260,6 +261,10 @@ int llwrite(const unsigned char *buf, int bufSize)
             printf("\tAttempt: %d\n",send_count);
 
             timeout= FALSE;
+            
+            (void) signal(SIGALRM, alarmHandler);
+            
+         
             alarm(timeout);
 
             if (read(fd, rcv_buf, MAX_SIZE) == 1 && rcv_buf[1] == A_RCV){
@@ -377,7 +382,10 @@ int llclose(int showStatistics)
                 received_disc = TRUE;
             }
 
-        }while(num_send_frame < numTries|| !timeout);      
+        }while(num_send_frame < numTries|| !timeout); 
+        
+        (void)signal(SIGALRM, alarmHandler);
+        
         alarm(0);
 
         if (!received_disc){
