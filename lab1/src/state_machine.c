@@ -1,5 +1,5 @@
-#include "state_machine.h"
-#include "macros.h"
+#include "../include/state_machine.h"
+#include "../include/macros.h"
 
 void set_state_r(int fd, unsigned char flag){
     unsigned char f;
