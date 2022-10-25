@@ -20,11 +20,13 @@ typedef struct
 } LinkLayer;
 
 
-int total_timeouts = 0;
-int total_retransmits = 0;
-int total_rej = 0;
-int total_received_frames = 0;
-int total_frames_sent = 0;
+extern int total_timeouts;
+extern int total_retransmits;
+extern int total_rej;
+extern int total_received_frames;
+extern int total_frames_sent;
+
+extern int fd;
 
 // SIZE of maximum acceptable payload.
 // Maximum number of bytes that application layer should send to link layer
