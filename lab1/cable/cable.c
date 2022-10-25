@@ -29,16 +29,16 @@ typedef enum
     CableModeNoise,
 } CableMode;
 
-// Returns: serial port file descriptor (fd).
+// Returns: serial port file descriptor (sp).
 int openSerialPort(const char *serialPort, struct termios *oldtio, struct termios *newtio)
 {
-    int fd = open(serialPort, O_RDWR | O_NOCTTY);
+    int sp = open(serialPort, O_RDWR | O_NOCTTY);
 
-    if (fd < 0)
+    if (sp < 0)
         return -1;
 
     // Save current port settings
-    if (tcgetattr(fd, oldtio) == -1)
+    if (tcgetattr(sp, oldtio) == -1)
         return -1;
 
     memset(newtio, 0, sizeof(*newtio));
@@ -48,12 +48,12 @@ int openSerialPort(const char *serialPort, struct termios *oldtio, struct termio
     newtio->c_lflag = 0;
     newtio->c_cc[VTIME] = 1; // Inter-character timer unused
     newtio->c_cc[VMIN] = 0;  // Read without blocking
-    tcflush(fd, TCIOFLUSH);
+    tcflush(sp, TCIOFLUSH);
 
-    if (tcsetattr(fd, TCSANOW, newtio) == -1)
+    if (tcsetattr(sp, TCSANOW, newtio) == -1)
         return -1;
 
-    return fd;
+    return sp;
 }
 
 // Add noise to a buffer, by flipping the byte in the "errorIndex" position.
@@ -88,9 +88,9 @@ int main(int argc, char *argv[])
     struct termios oldtioTx;
     struct termios newtioTx;
 
-    int fdTx = openSerialPort("/dev/emulatorTx", &oldtioTx, &newtioTx);
+    int spTx = openSerialPort("/dev/emulatorTx", &oldtioTx, &newtioTx);
 
-    if (fdTx < 0)
+    if (spTx < 0)
     {
         perror("Opening Tx emulator serial port");
         exit(-1);
@@ -99,9 +99,9 @@ int main(int argc, char *argv[])
     struct termios oldtioRx;
     struct termios newtioRx;
 
-    int fdRx = openSerialPort("/dev/emulatorRx", &oldtioRx, &newtioRx);
+    int spRx = openSerialPort("/dev/emulatorRx", &oldtioRx, &newtioRx);
 
-    if (fdRx < 0)
+    if (spRx < 0)
     {
         perror("Opening Rx emulator serial port");
         exit(-1);
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
     while (STOP == FALSE)
     {
         // Read from Tx
-        int bytesFromTx = read(fdTx, tx2rx, BUF_SIZE);
+        int bytesFromTx = read(spTx, tx2rx, BUF_SIZE);
 
         if (bytesFromTx > 0)
         {
@@ -138,13 +138,13 @@ int main(int argc, char *argv[])
                     addNoiseToBuffer(tx2rx, 0);
                 }
 
-                int bytesToRx = write(fdRx, tx2rx, bytesFromTx);
+                int bytesToRx = write(spRx, tx2rx, bytesFromTx);
                 printf("bytesFromTx=%d > bytesToRx=%d\n", bytesFromTx, bytesToRx);
             }
         }
 
         // Read from Rx
-        int bytesFromRx = read(fdRx, rx2tx, BUF_SIZE);
+        int bytesFromRx = read(spRx, rx2tx, BUF_SIZE);
 
         if (bytesFromRx > 0)
         {
@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
                     addNoiseToBuffer(rx2tx, 0);
                 }
 
-                int bytesToTx = write(fdTx, rx2tx, bytesFromRx);
+                int bytesToTx = write(spTx, rx2tx, bytesFromRx);
                 printf("bytesToTx=%d < bytesFromRx=%d\n", bytesToTx, bytesFromRx);
             }
         }
@@ -194,20 +194,20 @@ int main(int argc, char *argv[])
     }
 
     // Restore the old port settings
-    if (tcsetattr(fdRx, TCSANOW, &oldtioRx) == -1)
+    if (tcsetattr(spRx, TCSANOW, &oldtioRx) == -1)
     {
         perror("tcsetattr");
         exit(-1);
     }
 
-    if (tcsetattr(fdTx, TCSANOW, &oldtioTx) == -1)
+    if (tcsetattr(spTx, TCSANOW, &oldtioTx) == -1)
     {
         perror("tcsetattr");
         exit(-1);
     }
 
-    close(fdTx);
-    close(fdRx);
+    close(spTx);
+    close(spRx);
 
     system("killall socat");
 
