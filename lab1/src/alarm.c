@@ -1,11 +1,6 @@
 // Alarm example
 //
-#include <unistd.h>
-#include <signal.h>
-#include <stdio.h>
-
-#define FALSE 0
-#define TRUE 1
+#include "../include/alarm.h"
 
 int alarmEnabled = FALSE;
 int alarmCount = 0;
@@ -37,14 +32,15 @@ int createAlarm()
             alarm(3); // Set alarm to be triggered in 3s
             alarmEnabled = TRUE;
             /*
-            //write(set);
+            
+            write(set);
 
-            //int bytes=read(ua);
+            int bytes=read(ua);
 
             if (bytes>0)
-                RECEIVED = TRUE;
+                RECEIVED = TRUE;            
+            */
 
-*/
         }
     }
 

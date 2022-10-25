@@ -3,7 +3,7 @@
 #include "../include/link_layer.h"
 #include "../include/state_machine.h"
 #include "../include/macros.h"
-#include "alarm.c"
+#include "../include/alarm.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,6 +32,12 @@ volatile int STOP = FALSE;
 
 struct termios oldtio;
 struct termios newtio;
+
+int total_timeouts = 0;
+int total_retransmits = 0;
+int total_rej = 0;
+int total_received_frames = 0;
+int total_frames_sent = 0;
 
 
 ////////////////////////////////////////////////
@@ -92,7 +98,7 @@ int llopen(LinkLayer connectionParameters)
         role = LlRx;
         numTries = connectionParameters.nRetransmissions;
         timeout = connectionParameters.timeout;
-        set_stateT(fd, C_RCV);
+        set_stateT(&fd, C_RCV);
         unsigned char ua[5];
         ua[0] = FLAG_RCV;
         ua[1] = A_RCV;
@@ -119,11 +125,11 @@ int llopen(LinkLayer connectionParameters)
             set[4] = FLAG_RCV;
             if (write(fd, set, 5) < 0) return -1;
 
-            (void)signal(SIGALRM, alarmHandler);
+            createAlarm();
             
             while(!STOP && !alarmEnabled){
                 read(fd, &f, 1);
-                set_stateT(&fd, &f);
+                set_stateT(&fd, f);
             }
         } while(alarmEnabled && alarmCount < connectionParameters.timeout);
 
@@ -237,7 +243,7 @@ int llwrite(const unsigned char *buf, int bufSize)
     int has_received = FALSE;
 
     do{
-        (void)signal(SIGALRM, alarmHandler);        
+        createAlarm();       
         if (timeout && send_count < numTries){
             size_t buf1_sz = sizeof(buf1) / sizeof(buf1[0]);
 
@@ -364,7 +370,7 @@ int llclose(int showStatistics)
         int num_send_frame = 0;
         timeout = TRUE;
         int received_disc = FALSE;
-        (void)signal(SIGALRM, alarmHandler);
+        createAlarm();
         do{
             if (write(fd, frame_disc, 5) == -1){
                 return -1;
@@ -385,11 +391,11 @@ int llclose(int showStatistics)
             if (tcsetattr(fd, TCSANOW, &oldtio) == -1){           
                 return -1;
             }
-            set_stateT(&fd, (unsigned char *) STOP_);
+            set_stateT(&fd, (unsigned char) STOP_);
             return -1;
         }   
         if (write(fd, &frame_ua,5) == -1){
-            set_stateT(&fd, (unsigned char *) STOP_);
+            set_stateT(&fd, (unsigned char) STOP_);
             return -1;
         }
     }
@@ -399,7 +405,7 @@ int llclose(int showStatistics)
         int num_send_frame = 0;
         timeout = FALSE;
         int read_r;
-        (void)signal(SIGALRM, alarmHandler);
+        createAlarm();
 
         do{
             read_r = read(fd,&frame_disc, 5);
@@ -446,7 +452,7 @@ int llclose(int showStatistics)
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1){
         return -1;
     }
-    set_stateT(fd, STOP_);
+    set_stateT(&fd, STOP_);
 
     if (showStatistics == 1){
             printf("====Statistics====\n");

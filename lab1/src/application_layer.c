@@ -12,8 +12,6 @@
 #include "../include/link_layer.h"
 #include "../include/macros.h"
 
-int fd;
-
 LinkLayer layer;
 
 void applicationLayer(const char *serialPort, const char *role, int baudRate,
