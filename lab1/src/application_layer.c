@@ -40,26 +40,25 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     unsigned char bytes_sent;
 
     fd = llopen(layer);
-
     if (fd == -1){
         printf("Connection failed\n");
         return;
     }
     printf("Connection opened\n");
     
-    int file = open(filename, O_RDONLY);
-    if (file < 0){
-        printf("Can't open file\n");
-        return;
-    }
     if (layer.role == LlTx){
-
+        
+        int file = open(filename, O_RDONLY);
+            if (file < 0){
+                printf("Can't open file\n");
+                return;
+            }
         int bytes_read = 1;
         int bytes_written = 0;
 
         while (bytes_read > 0){
 
-            bytes_read = read(file, buffer + 1, MAX_PAYLOAD_SIZE);
+            bytes_read = read(file, I + 1, MAX_PAYLOAD_SIZE);
 
             if (bytes_read == -1){
                 break;
@@ -85,9 +84,15 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             }
         }
         sleep(1);
+        close(file);
     }
     
     else{
+        int file = open(filename, O_RDONLY);
+        if (file < 0){
+                    printf("Can't open file\n");
+                    return;
+                }
         int bytes_read = 0;
         int bytes_written = 0;
 
@@ -114,9 +119,9 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                 break;
             }
         }
-        
+        close(file);
     }
-    close(file);
+    
     llclose(TRUE);
 
 }
