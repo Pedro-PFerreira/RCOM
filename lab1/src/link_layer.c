@@ -40,21 +40,58 @@ int total_rej = 0;
 int total_received_frames = 0;
 int total_frames_sent = 0;
 
+unsigned char set_message[5];
+unsigned char ua[5];
+
 
 int llopen_t(){
-
-    unsigned char set_message[5];
 
     set_message[0] = FLAG_RCV;
     set_message[1] = A_T;
     set_message[2] = SET;
     set_message[3] = A_T ^ C_T;
     set_message[4] = FLAG_RCV;
+    if (write(fd, set_message, 5) > 0){
+        while (total_retransmits <= 3){
+            if (read(fd, ua, 5) < 0 && total_retransmits < 3){
+                total_frames_sent++;
+                write(fd, set_message, 5);
+            }
+            else if(total_retransmits == 3){
+                return -1;
+            }
+            else{
+                total_retransmits = 0;
+                return 0;
+            }       
+        }        
+    }
+    return -1;
+
 }
 
 int llopen_r()
 {
+    ua[0] = FLAG_RCV;
+    ua[1] = A_RCV;
+    ua[2] = UA;
+    ua[3] = A_RCV ^ C_RCV;
+    ua[4] = FLAG_RCV;
 
+    if (read(fd, set_message, 5) > 0){
+        bytes = write(fd, ua, 5);
+        if(bytes < 0 && total_retransmits < 3) 
+        {
+            write(fd, ua, 5);
+        }
+        else if(total_retransmits == 3){
+            return -1;
+        }        
+    }
+
+    printf("Sent: %s:%d\n", send_buf, bytes);
+
+    return -1;
 }
 
 
@@ -108,65 +145,19 @@ int llopen(LinkLayer connectionParameters)
         exit(-1);
     }
 
+    numTries = connectionParameters.nRetransmissions;
+    timeout = connectionParameters.timeout;
+
     printf("New termios structure set\n");
    
     if (connectionParameters.role == LlTx){
         role = LlTx;
-        numTries = connectionParameters.nRetransmissions;
-        timeout = connectionParameters.timeout;
-        unsigned char set_message[5];
-
-        set_message[0] = FLAG_RCV;
-        set_message[1] = A_T;
-        set_message[2] = SET;
-        set_message[3] = A_T ^ C_T;
-        set_message[4] = FLAG_RCV;
-        //unsigned char f;
-        //read(fd, &f, 1);
-        /*
-        do{
-            role = LlTx;
-            numTries = connectionParameters.nRetransmissions;
-            timeout = connectionParameters.timeout;
-            unsigned char f;
-            
-            createAlarm();
-            
-            while(!STOP && !alarmEnabled){
-                read(fd, &f, 1);
-                //set_stateT(&fd, f);
-            }
-        } while(alarmEnabled && alarmCount < connectionParameters.timeout);        
-        */
-        write(fd, set_message, 5);
-        if (alarmEnabled && alarmCount == 3){
-            return 0;
-        }
-        else{
-            alarmEnabled = FALSE;
-            alarmCount = 0;
-            return 1;
-        }
+        fd = llopen_t();
     }
 
     else if (connectionParameters.role == LlRx){
         role = LlRx;
-        numTries = connectionParameters.nRetransmissions;
-        timeout = connectionParameters.timeout;
-        //set_state_r(fd, C_RCV);
-
-        unsigned char ua[5];
-        ua[0] = FLAG_RCV;
-        ua[1] = A_RCV;
-        ua[2] = UA;
-        ua[3] = A_RCV ^ C_RCV; // ua[1] ^ ua[2]
-        ua[4] = FLAG_RCV;
-
-        size_t ua_size = sizeof(ua) / sizeof(ua[0]);
-        if(write(fd, ua, ua_size) < 0) {
-            return -1;
-        }
-        
+        fd = llopen_r();
     }
     printf("Sent: %s:%d\n", send_buf, bytes);
     // The while() cycle should be changed in order to respect the specifications
@@ -178,7 +169,7 @@ int llopen(LinkLayer connectionParameters)
         perror("tcsetattr");
         exit(-1);
     }
-    return 0;
+    return 1;
     
 }
 
@@ -210,7 +201,6 @@ unsigned char destuff(unsigned char * block){
 ////////////////////////////////////////////////
 int llwrite(const unsigned char *buf, int bufSize)
 {   
-
     if (buf == NULL || bufSize < 0){
         return -1;
     }
@@ -218,7 +208,6 @@ int llwrite(const unsigned char *buf, int bufSize)
     if (bufSize > MAX_PAYLOAD_SIZE){
         return -1;
     }
-
 
     unsigned char buf1[MAX_SIZE];
 
@@ -254,9 +243,8 @@ int llwrite(const unsigned char *buf, int bufSize)
     
     size_t rcv_sz = sizeof(rcv_buf) / sizeof(rcv_buf[0]);
 
-
     for (int i = 4; i < rcv_sz; i++){
-        send_buf[i] = stuff(&buf1[i]);
+        send_buf[i] = stuff(&rcv_buf[i]);
     }
 
     int send_count = 0;
@@ -287,7 +275,7 @@ int llwrite(const unsigned char *buf, int bufSize)
                 total_retransmits++;
             }
             send_count++;
-            printf("\tAttempt: %d\n",send_count);
+            printf("Attempt: %d\n",send_count);
 
             timeout= FALSE;
 

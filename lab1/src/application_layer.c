@@ -36,36 +36,41 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     buffer[1] = ESC;
     buffer[2] = ESC;
 
-    unsigned char I[sizeof(buffer) * 2 + 6];
+    unsigned char I[MAX_SIZE + 6];
     unsigned char bytes_sent;
 
     fd = llopen(layer);
+    
     if (fd == -1){
         printf("Connection failed\n");
         return;
     }
     printf("Connection opened\n");
-    
+
     if (layer.role == LlTx){
-        
-        int file = open(filename, O_RDONLY);
-            if (file < 0){
-                printf("Can't open file\n");
-                return;
-            }
+
+
+        FILE* file;
+        file = fopen(filename, "r");  // O_RDONLY
+        if (file == NULL){
+            printf("Can't open file\n");
+            return;
+        }
         int bytes_read = 1;
         int bytes_written = 0;
-
         while (bytes_read > 0){
+            
+            size_t I_size = sizeof(I) / sizeof(I[0]);
 
-            bytes_read = read(file, I + 1, MAX_PAYLOAD_SIZE);
+            size_t count = MAX_PAYLOAD_SIZE / I_size;
+            bytes_read = fread(I, sizeof(I), count, file);
 
             if (bytes_read == -1){
                 break;
             }
 
             else if (bytes_read > 0){
-                bytes_written = llwrite(I, bytes_read + 3);
+                bytes_written = llwrite(I, bytes_read + 6);
                 if(bytes_written == -1 || bytes_written != bytes_read + 3){
                     break;
                 }
@@ -84,13 +89,15 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             }
         }
         sleep(1);
-        close(file);
+        fclose(file);
     }
     
     else{
-        int file = open(filename, O_RDONLY);
+        int file;
+        file = open(filename, O_WRONLY | O_CREAT);
         if (file < 0){
                     printf("Can't open file\n");
+
                     return;
                 }
         int bytes_read = 0;
@@ -105,7 +112,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             }
 
             else if (bytes_read > 0){
-                bytes_written = write(file, buffer + 1, bytes_read - 1);
+
+                bytes_written = write(file, buffer, sizeof(buffer));
                 if(bytes_written == -1 || bytes_written != bytes_read + 3){
                     break;
                 }
