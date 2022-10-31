@@ -51,7 +51,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
 
         FILE* file;
-        file = fopen(filename, "r");  // O_RDONLY
+        file = fopen(filename, "rb");
         if (file == NULL){
             printf("Can't open file\n");
             return;
@@ -93,27 +93,27 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     }
     
     else{
-        int file;
-        file = open(filename, O_WRONLY | O_CREAT);
-        if (file < 0){
-                    printf("Can't open file\n");
+        FILE* file;
+        file = fopen(filename, "wb");
+        if (file == NULL){
+            printf("Can't open file\n");
+            return;
+        }
 
-                    return;
-                }
-        int bytes_read = 0;
+        int bytes_read = 1;
         int bytes_written = 0;
-
         while (bytes_read > 0){
-
             bytes_read = llread(buffer);
 
             if (bytes_read == -1){
                 break;
             }
-
             else if (bytes_read > 0){
+                size_t I_size = sizeof(I) / sizeof(I[0]);
 
-                bytes_written = write(file, buffer, sizeof(buffer));
+                size_t count = MAX_PAYLOAD_SIZE / I_size;
+                bytes_read = fread(I, sizeof(I), count, file);
+                bytes_written = fwrite(I, sizeof(I), count, file);
                 if(bytes_written == -1 || bytes_written != bytes_read + 3){
                     break;
                 }
@@ -127,7 +127,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                 break;
             }
         }
-        close(file);
+        fclose(file);
     }
     
     llclose(TRUE);

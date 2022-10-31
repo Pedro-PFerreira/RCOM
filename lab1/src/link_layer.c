@@ -17,8 +17,8 @@ int state = START;
 char* filename;
 int nTries = 0;
 
-unsigned char rcv_buf[MAX_SIZE];
-unsigned char send_buf[MAX_SIZE];
+unsigned char rcv_buf[MAX_SIZE + 7];
+unsigned char send_buf[MAX_SIZE+ 7];
 
 int bytes = 0;
 
@@ -201,6 +201,9 @@ unsigned char destuff(unsigned char * block){
 ////////////////////////////////////////////////
 int llwrite(const unsigned char *buf, int bufSize)
 {   
+
+    int has_received = FALSE;
+
     if (buf == NULL || bufSize < 0){
         return -1;
     }
@@ -209,96 +212,53 @@ int llwrite(const unsigned char *buf, int bufSize)
         return -1;
     }
 
-    unsigned char buf1[MAX_SIZE];
+    (void)signal(SIGALRM, alarmHandler);
 
-    int BCC_2 = buf[0];  
+    unsigned char buf1[bufSize + 7];
 
-    for (int i = 1; i < bufSize; i++){
-        BCC_2 = BCC_2 ^ buf[i];
+    for (int i = 4; i < 4+ bufSize; i++){
+        buf1[i-4] = buf[i-4];
     }
 
-    if (role == LlRx){
-        buf1[0] = FLAG_RCV;
-        buf1[1] = A_RCV;
-        buf1[2] = C_RCV;
-        buf1[3] = A_RCV ^ C_RCV;
-        buf1[bufSize + 3] = BCC_2; 
-        buf1[bufSize + 4] = FLAG_RCV;
+    int BCC_2 = 0x00;  
+    buf1[0] = FLAG_RCV;
+    buf1[1] = A_T;
+    buf1[2] = C_T;
+    buf1[3] = A_T ^ C_T;
+    buf1[bufSize + 3] = BCC_2; 
+    buf1[bufSize + 4] = FLAG_RCV;
+    for (int i = 4; i < 4 + bufSize; i++){
+        BCC_2 = BCC_2 ^ buf1[i-1];
+        printf("%x\n", buf1[i-4]);
     }
+    for (int i = 4; i < bufSize; i++){
+        buf1[i] = stuff(&buf1[i]);
 
-    else if (role == LlTx){
-        buf1[0] = FLAG_RCV;
-        buf1[1] = A_T;
-        buf1[2] = C_T;
-        buf1[3] = A_T ^ C_T;
-        buf1[bufSize + 3] = BCC_2; 
-        buf1[bufSize + 4] = FLAG_RCV;
     }
-
-    size_t buf1_sz = sizeof(buf1) / sizeof(buf1[0]);
-
-    for (size_t i = 0; i < buf1_sz; i++){
-        rcv_buf[i] = buf[i];
-    }
-    
-    size_t rcv_sz = sizeof(rcv_buf) / sizeof(rcv_buf[0]);
-
-    for (int i = 4; i < rcv_sz; i++){
-        send_buf[i] = stuff(&rcv_buf[i]);
-    }
-
     int send_count = 0;
-    timeout = TRUE;
-    int has_received = FALSE;
-
-    do{
-        //createAlarm();       
-        if (timeout && send_count < numTries){
-            size_t buf1_sz = sizeof(buf1) / sizeof(buf1[0]);
-
-            for (size_t i = 0; i < buf1_sz; i++){
-                rcv_buf[i] = buf[i];
-            }
-            
-            size_t rcv_sz = sizeof(rcv_buf) / sizeof(rcv_buf[0]);
+    unsigned char flag_received[1] = {0};
 
 
-            for (int i = 4; i < rcv_sz; i++){
-                send_buf[i] = stuff(&buf1[i]);
-            }
+    while(!has_received && alarmCount < 4){
 
-            write(fd, send_buf, bytes);
-            if (fd == -1) return -1;
+        send_count = write(fd, buf1, bufSize + 6);
 
-            else if(fd != 0){
-                total_timeouts++;
-                total_retransmits++;
-            }
-            send_count++;
-            printf("Attempt: %d\n",send_count);
+        sleep(1);
+        alarm(3);
 
-            timeout= FALSE;
+        alarmEnabled = TRUE;
 
-            if (read(fd, rcv_buf, MAX_SIZE) == 1 && rcv_buf[1] == A_RCV){
-
-                if (rcv_buf[2] == C_RCV){
-                    has_received = TRUE;
-                    break;
-                }         
-
-                else{
-                    timeout = TRUE;
-                    send_count = 0;
-                    total_retransmits++;
-                    continue;
-                }          
-            }
+        while (state != STOP_){
+            state = START; 
+            flag_received[0] = read(fd, flag_received, 1);
+            set_stateT(state, flag_received[0]);
         }
-    }while(send_count < numTries || !timeout);
+
+    }
 
     if (!has_received) return -1;
 
-    return bufSize;
+    return (send_count - 6);
 }
 
 ////////////////////////////////////////////////
@@ -401,7 +361,7 @@ int llclose(int showStatistics)
             if (tcsetattr(fd, TCSANOW, &oldtio) == -1){           
                 return -1;
             }
-            set_stateT(&fd, (unsigned char) STOP_);
+            set_stateT(fd, (unsigned char) STOP_);
             return -1;
         }   
         if (write(fd, &frame_ua,5) == -1){
