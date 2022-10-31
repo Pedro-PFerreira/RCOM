@@ -43,7 +43,6 @@ int total_frames_sent = 0;
 unsigned char set_message[5];
 unsigned char ua[5];
 
-
 int llopen_t(){
 
     set_message[0] = FLAG_RCV;
@@ -53,7 +52,7 @@ int llopen_t(){
     set_message[4] = FLAG_RCV;
     if (write(fd, set_message, 5) > 0){
         while (total_retransmits <= 3){
-            if (read(fd, ua, 5) < 0 && total_retransmits < 3){
+            if (read(fd, &ua, 6) < 0 && total_retransmits < 3){
                 total_frames_sent++;
                 write(fd, set_message, 5);
             }
@@ -66,7 +65,7 @@ int llopen_t(){
             }       
         }        
     }
-    return -1;
+    return fd;
 
 }
 
@@ -77,8 +76,8 @@ int llopen_r()
     ua[2] = UA;
     ua[3] = A_RCV ^ C_RCV;
     ua[4] = FLAG_RCV;
-
-    if (read(fd, set_message, 5) >= 0){
+    printf("%d\n", fd);
+    if (read(fd, &set_message, 6) >= 0){
 
         bytes = write(fd, ua, 5);
         if(bytes < 0 && total_retransmits < 3) 
@@ -96,7 +95,7 @@ int llopen_r()
 
     printf("Sent: %s:%d\n", send_buf, bytes);
 
-    return -1;
+    return fd;
 }
 
 
@@ -131,7 +130,7 @@ int llopen(LinkLayer connectionParameters)
     // Set input mode (non-canonical, no echo,...)
     newtio.c_lflag = 0;
     newtio.c_cc[VTIME] = 0; // Inter-character timer unused
-    newtio.c_cc[VMIN] = 5;  // Blocking read until 5 chars received
+    newtio.c_cc[VMIN] = 0;  // Blocking read until 5 chars received
 
     // VTIME e VMIN should be changed in order to protect with a
     // timeout the reception of the following character(s)
@@ -160,7 +159,8 @@ int llopen(LinkLayer connectionParameters)
         fd = llopen_t();
     }
 
-    else if (connectionParameters.role == LlRx){
+    else
+    { // if (connectionParameters.role == LlRx){
         role = LlRx;
         fd = llopen_r();
     }
@@ -168,12 +168,15 @@ int llopen(LinkLayer connectionParameters)
     // The while() cycle should be changed in order to respect the specifications
     // of the protocol indicated in the Lab guide
 
+
+
     // Restore the old port settings
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
     {
         perror("tcsetattr");
         exit(-1);
     }
+    
     return 1;
     
 }
