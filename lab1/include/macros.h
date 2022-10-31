@@ -11,8 +11,9 @@
 #define C_T 0x01
 #define SET 0X03
 #define UA 0x07
+#define RR 0x05
 #define STUFFER 0x20
-#define MAX_SIZE 128
+#define MAX_SIZE 256
 #define TRUE 1
 #define FALSE 0
 
