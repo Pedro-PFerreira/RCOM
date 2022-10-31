@@ -49,7 +49,6 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
     if (layer.role == LlTx){
 
-
         FILE* file;
         file = fopen(filename, "rb");
         if (file == NULL){
@@ -63,14 +62,14 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             size_t I_size = sizeof(I) / sizeof(I[0]);
 
             size_t count = MAX_PAYLOAD_SIZE / I_size;
-            bytes_read = fread(I, sizeof(I), count, file);
+            bytes_read = fread(I+4, 1, count, file);
 
-            if (bytes_read == -1){
+            if (bytes_read == -1){              
                 break;
             }
 
             else if (bytes_read > 0){
-                bytes_written = llwrite(I, bytes_read + 6);
+                bytes_written = llwrite(I+4, MAX_PAYLOAD_SIZE - bytes_sent);
                 if(bytes_written == -1 || bytes_written != bytes_read + 3){
                     break;
                 }
@@ -91,10 +90,10 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         sleep(1);
         fclose(file);
     }
-    
-    else{
+    else if (layer.role == LlRx){
         FILE* file;
         file = fopen(filename, "wb");
+        
         if (file == NULL){
             printf("Can't open file\n");
             return;
@@ -112,8 +111,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                 size_t I_size = sizeof(I) / sizeof(I[0]);
 
                 size_t count = MAX_PAYLOAD_SIZE / I_size;
-                bytes_read = fread(I, sizeof(I), count, file);
-                bytes_written = fwrite(I, sizeof(I), count, file);
+                bytes_read = fread(buffer+4, 1, count, file);
+                bytes_written = fwrite(buffer+4, sizeof(I), count, file);
                 if(bytes_written == -1 || bytes_written != bytes_read + 3){
                     break;
                 }
@@ -123,7 +122,10 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                         bytes_read, bytes_written, total_frames_sent);
             }
 
+            
             else if(bytes_read == 0){
+                llwrite(buffer, 1);
+                printf("App layer: done reading and sending file\n");
                 break;
             }
         }

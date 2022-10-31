@@ -78,7 +78,8 @@ int llopen_r()
     ua[3] = A_RCV ^ C_RCV;
     ua[4] = FLAG_RCV;
 
-    if (read(fd, set_message, 5) > 0){
+    if (read(fd, set_message, 5) >= 0){
+
         bytes = write(fd, ua, 5);
         if(bytes < 0 && total_retransmits < 3) 
         {
@@ -86,7 +87,11 @@ int llopen_r()
         }
         else if(total_retransmits == 3){
             return -1;
-        }        
+        }
+        else{
+            total_retransmits = 0;
+            return 0;
+        }      
     }
 
     printf("Sent: %s:%d\n", send_buf, bytes);
@@ -270,64 +275,26 @@ int llread(unsigned char *packet)
     if (packet == NULL){
         return -1;
     }
-
-    unsigned char* frame_set[5], frame_ua[5];
-    timeout = FALSE;
-    int num_send_frame = 0;
-    int num_rec_frame = 0;
-    int num_rej_frame = 0;
-    
-    *packet = destuff(packet);
+    unsigned char destuffed;
+    destuffed = destuff(packet);
 
     if (packet == NULL){
-        //alarmHandler(TRUE);
         return 0;
     }
+    unsigned char flag_received[1];
+    int frames_received = read(fd,flag_received, 1);
+    set_stateR(fd,flag_received[0]);
 
-    while(TRUE)
-    {
-        if(timeout == TRUE)
-        {
-            timeout = FALSE;
-            //alarm(0);
-            printf("Receiving timeout");
-            break;
-            
-        }
-        if(read(fd, frame_set,5) == -1)
-        {
-            return -1;
-        }
-        if(*frame_set[0] == A_T && *frame_set[1] == C_T)
-        {
-            if(write(fd, frame_ua,5) == -1)
-            {
-            return -1;
-            }
-            num_send_frame++;
-            continue;
-        }
-        
-        else if(*frame_set[0] == A_RCV && *frame_set[1] == C_RCV)
-        {
-            num_rec_frame++;
-            if(read(fd,frame_set,5) == -2) // The frame is incorrect
-            {
-                *frame_set[0] = *frame_set[0] << 5;
-                if(write(fd,frame_set,5) == -1){
-                    return -1;
-                }
-                num_rej_frame++;
-                continue;
-            }
-            if(write(fd,frame_set,5) == -1)
-            {
-                return -1;
-            }
-        }    
-    }
-    
-    return -1;
+    unsigned char accepted[5];
+    accepted[0] = FLAG;
+    accepted[1] = A_RCV;
+    accepted[2] = C_RCV;
+    accepted[3] = A_RCV ^ C_RCV;
+    accepted[4] = FLAG;
+    int bytes_sent = write(fd, accepted, 5);
+    printf("%d bytes accepted written\n", bytes_sent);
+    memcpy(packet, &destuffed, sizeof(packet) + 6);
+    return (frames_received+4);
 }
 ////////////////////////////////////////////////
 // LLCLOSE

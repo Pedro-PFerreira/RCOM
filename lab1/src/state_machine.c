@@ -9,13 +9,13 @@
 #include "../include/state_machine.h"
 #include "../include/macros.h"
 
-void set_state_r(int sp, unsigned char flag){
+void set_stateR(int fd, unsigned char flag){
     int state = START;
     while(state != STOP_){
         switch (state)
         {
         case START:
-            if (sp == FLAG_RCV){
+            if (fd == FLAG_RCV){
                 state = STATE_FLAG_RCV;            
             }
             else{
@@ -24,10 +24,10 @@ void set_state_r(int sp, unsigned char flag){
             break;
 
         case STATE_FLAG_RCV:
-            if (sp == FLAG_RCV){
+            if (fd == FLAG_RCV){
                 state = STATE_FLAG_RCV;
             }
-            else if (sp == A_RCV){
+            else if (fd == A_RCV){
                 state = A_RCV;
             }
             else{
@@ -36,11 +36,11 @@ void set_state_r(int sp, unsigned char flag){
             break;
 
         case A:
-            if (sp == flag)
+            if (fd == flag)
             {
                 state = C_RCV;
             }
-            else if (sp == FLAG_RCV)
+            else if (fd == FLAG_RCV)
             {
                 state = STATE_FLAG_RCV;
             }
@@ -54,7 +54,7 @@ void set_state_r(int sp, unsigned char flag){
             if ((A_RCV ^ C_RCV) == BCC_OK){
                 state = BCC_OK;
             }
-            else if(sp == FLAG_RCV)
+            else if(fd == FLAG_RCV)
             {
                 state = STATE_FLAG_RCV;
             }
@@ -64,7 +64,7 @@ void set_state_r(int sp, unsigned char flag){
             break;
 
         case BCC_OK:
-            if (sp == FLAG_RCV){
+            if (fd == FLAG_RCV){
                 state = STOP_;
             }
             else
