@@ -8,7 +8,7 @@
 #define BCC_OK 4
 #define STOP_ 5
 
-void set_state(int sp, unsigned char flag);
+void set_stateR(int fd, unsigned char flag);
 
 void set_stateT(int state, unsigned char flag);
 
