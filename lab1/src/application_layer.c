@@ -41,7 +41,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
     fd = llopen(layer);
     
-    if (fd == -1){
+    /*if (fd == -1){
         printf("Connection failed\n");
         return;
     }
@@ -69,7 +69,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             }
 
             else if (bytes_read > 0){
-                bytes_written = llwrite(I+4, MAX_PAYLOAD_SIZE - bytes_sent);
+                bytes_written = llwrite(I, MAX_PAYLOAD_SIZE - bytes_sent);
                 if(bytes_written == -1 || bytes_written != bytes_read + 3){
                     break;
                 }
@@ -112,7 +112,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
                 size_t count = MAX_PAYLOAD_SIZE / I_size;
                 bytes_read = fread(buffer+4, 1, count, file);
-                bytes_written = fwrite(buffer+4, sizeof(I), count, file);
+                bytes_written = fwrite(buffer+4, sizeof(buffer), count, file);
                 if(bytes_written == -1 || bytes_written != bytes_read + 3){
                     break;
                 }
@@ -130,8 +130,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             }
         }
         fclose(file);
-    }
+    }*/
     
-    llclose(TRUE);
+    //llclose(TRUE);
 
 }

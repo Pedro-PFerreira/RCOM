@@ -65,7 +65,7 @@ int llopen_t(){
             }       
         }        
     }
-    return fd;
+    return 1;
 
 }
 
@@ -76,7 +76,7 @@ int llopen_r()
     ua[2] = UA;
     ua[3] = A_RCV ^ C_RCV;
     ua[4] = FLAG_RCV;
-    printf("%d\n", fd);
+    
     if (read(fd, &set_message, 6) >= 0){
 
         bytes = write(fd, ua, 5);
@@ -95,7 +95,7 @@ int llopen_r()
 
     printf("Sent: %s:%d\n", send_buf, bytes);
 
-    return fd;
+    return 1;
 }
 
 
@@ -105,7 +105,7 @@ int llopen_r()
 int llopen(LinkLayer connectionParameters)
 {   
 
-    int fd = open(connectionParameters.serialPort, O_RDWR | O_NOCTTY);
+    fd = open(connectionParameters.serialPort, O_RDWR | O_NOCTTY);
     
     if (fd < 0)
     {
@@ -129,7 +129,7 @@ int llopen(LinkLayer connectionParameters)
 
     // Set input mode (non-canonical, no echo,...)
     newtio.c_lflag = 0;
-    newtio.c_cc[VTIME] = 0; // Inter-character timer unused
+    newtio.c_cc[VTIME] = 30; // Inter-character timer unused
     newtio.c_cc[VMIN] = 0;  // Blocking read until 5 chars received
 
     // VTIME e VMIN should be changed in order to protect with a
@@ -156,15 +156,15 @@ int llopen(LinkLayer connectionParameters)
    
     if (connectionParameters.role == LlTx){
         role = LlTx;
-        fd = llopen_t();
+        int res = llopen_t();
     }
-
     else
     { // if (connectionParameters.role == LlRx){
         role = LlRx;
-        fd = llopen_r();
+        int res = llopen_r();
     }
-    printf("Sent: %s:%d\n", send_buf, bytes);
+
+    //printf("Sent: %s:%d\n", send_buf, bytes);
     // The while() cycle should be changed in order to respect the specifications
     // of the protocol indicated in the Lab guide
 
@@ -183,7 +183,7 @@ int llopen(LinkLayer connectionParameters)
 
 unsigned char stuff(unsigned char * block){
 
-    unsigned char res = 0x0000;
+    unsigned char res = 0x00;
     if (*block == FLAG){
         *block = *block ^ STUFFER;
         res |= ESC;
@@ -199,7 +199,7 @@ unsigned char stuff(unsigned char * block){
 
 unsigned char destuff(unsigned char * block){
 
-    unsigned char res= 0x0000;
+    unsigned char res= 0x00;
     res |= (*block ^STUFFER);
     return res;
 }
