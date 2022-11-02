@@ -35,11 +35,13 @@ extern int total_frames_sent;
 
 extern int fd;
 
+void llopen_t();
 
-int llopen_t();
+void llopen_r();
 
-int llopen_r();
+void llclose_r();
 
+void llclose_t();
 
 // Open a connection using the "port" parameters defined in struct linkLayer.
 // Return "1" on success or "-1" on error.
@@ -47,7 +49,7 @@ int llopen(LinkLayer connectionParameters);
 
 // Send data in buf with size bufSize.
 // Return number of chars written, or "-1" on error.
-int llwrite(const unsigned char *buf, int bufSize);
+int llwrite(const unsigned char *buf, int bufSize, unsigned char *frame_to_send);
 
 // Receive data in packet.
 // Return number of chars read, or "-1" on error.

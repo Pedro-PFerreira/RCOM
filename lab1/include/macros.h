@@ -12,6 +12,7 @@
 #define SET 0X03
 #define UA 0x07
 #define RR 0x05
+#define C_DISC 0x0B
 #define STUFFER 0x20
 #define MAX_SIZE 256
 #define TRUE 1
