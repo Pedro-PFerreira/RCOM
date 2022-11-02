@@ -39,7 +39,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     unsigned char I[MAX_SIZE + 6];
     unsigned char bytes_sent;
 
-    fd = llopen(layer);
+    int fd = llopen(layer);
     
     /*if (fd == -1){
         printf("Connection failed\n");

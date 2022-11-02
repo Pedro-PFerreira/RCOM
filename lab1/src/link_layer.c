@@ -28,7 +28,6 @@ LinkLayerRole role;
 int numTries;
 int timeout;
 
-
 volatile int STOP = FALSE;
 
 struct termios oldtio;
@@ -40,62 +39,40 @@ int total_rej = 0;
 int total_received_frames = 0;
 int total_frames_sent = 0;
 
-unsigned char set_message[5];
-unsigned char ua[5];
+int S = 0;
 
-int llopen_t(){
-
+void llopen_t(){
+    unsigned char set_message[5];
     set_message[0] = FLAG_RCV;
     set_message[1] = A_T;
     set_message[2] = SET;
     set_message[3] = A_T ^ C_T;
     set_message[4] = FLAG_RCV;
-    if (write(fd, set_message, 5) > 0){
-        while (total_retransmits <= 3){
-            if (read(fd, &ua, 6) < 0 && total_retransmits < 3){
-                total_frames_sent++;
-                write(fd, set_message, 5);
-            }
-            else if(total_retransmits == 3){
-                return -1;
-            }
-            else{
-                total_retransmits = 0;
-                return 0;
-            }       
-        }        
-    }
-    return 1;
+
+    printf("Sent: %x %x %x %x %x\n", set_message[0], set_message[1],set_message[2],set_message[3],set_message[4]);
+    int bytes = write(fd, set_message, 5);
+
+    unsigned char ua_message[5];
+    bytes = read(fd, ua_message, 5);
+    printf("Received: %x %x %x %x %x\n", ua_message[0], ua_message[1],ua_message[2],ua_message[3],ua_message[4]);
 
 }
 
-int llopen_r()
+void llopen_r()
 {
-    ua[0] = FLAG_RCV;
-    ua[1] = A_RCV;
-    ua[2] = UA;
-    ua[3] = A_RCV ^ C_RCV;
-    ua[4] = FLAG_RCV;
-    
-    if (read(fd, &set_message, 6) >= 0){
+    unsigned char set_message[5];
+    read(fd, set_message, 5);
 
-        bytes = write(fd, ua, 5);
-        if(bytes < 0 && total_retransmits < 3) 
-        {
-            write(fd, ua, 5);
-        }
-        else if(total_retransmits == 3){
-            return -1;
-        }
-        else{
-            total_retransmits = 0;
-            return 0;
-        }      
-    }
+    printf("Received: %x %x %x %x %x\n", set_message[0], set_message[1],set_message[2],set_message[3],set_message[4]);
 
-    printf("Sent: %s:%d\n", send_buf, bytes);
-
-    return 1;
+    unsigned char ua_message[5];
+    ua_message[0] = FLAG_RCV;
+    ua_message[1] = A_RCV;
+    ua_message[2] = UA;
+    ua_message[3] = A_RCV ^ C_RCV;
+    ua_message[4] = FLAG_RCV;
+    write(fd, ua_message, 5);
+    printf("Sent: %x %x %x %x %x\n", ua_message[0], ua_message[1],ua_message[2],ua_message[3],ua_message[4]);
 }
 
 
@@ -103,8 +80,7 @@ int llopen_r()
 // LLOPEN
 ////////////////////////////////////////////////
 int llopen(LinkLayer connectionParameters)
-{   
-
+{
     fd = open(connectionParameters.serialPort, O_RDWR | O_NOCTTY);
     
     if (fd < 0)
@@ -156,26 +132,14 @@ int llopen(LinkLayer connectionParameters)
    
     if (connectionParameters.role == LlTx){
         role = LlTx;
-        int res = llopen_t();
+        llopen_t();
     }
     else
-    { // if (connectionParameters.role == LlRx){
-        role = LlRx;
-        int res = llopen_r();
-    }
-
-    //printf("Sent: %s:%d\n", send_buf, bytes);
-    // The while() cycle should be changed in order to respect the specifications
-    // of the protocol indicated in the Lab guide
-
-
-
-    // Restore the old port settings
-    if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
     {
-        perror("tcsetattr");
-        exit(-1);
+        role = LlRx;
+        llopen_r();
     }
+
     
     return 1;
     
@@ -207,10 +171,40 @@ unsigned char destuff(unsigned char * block){
 ////////////////////////////////////////////////
 // LLWRITE
 ////////////////////////////////////////////////
-int llwrite(const unsigned char *buf, int bufSize)
+int llwrite(const unsigned char *buf, int bufSize, unsigned char *frame_to_send)
 {   
+    
+    unsigned char buf_to_stuff[bufSize];
 
-    int has_received = FALSE;
+    unsigned char BCC2 = 0x00;
+    for (int i = 4; i < 4 + bufSize; i++){
+        buf_to_stuff[i-4] = stuff(buf[i-4]);
+        BCC2 ^= buf_to_stuff[i-4];
+    }
+
+    frame_to_send[0] = FLAG;
+    frame_to_send[1] = A_RCV;
+    frame_to_send[2] = 0x00 ^ (S << 6);
+    frame_to_send[3] = frame_to_send[1] ^ frame_to_send[2];
+
+    frame_to_send[bufSize + 2] = BCC2;
+    frame_to_send[bufSize + 3] = FLAG;
+
+    for (int i = 4; i < 4+ bufSize; i++){
+        frame_to_send[i-4] = buf_to_stuff[i-4];
+    }
+
+    int bytes_written = write(fd, frame_to_send, buf_to_stuff + 3);
+
+    if (bytes_written < 0){
+        return -1;
+    }
+    S = S^1;
+    return bytes_written;
+
+/*
+
+int has_received = FALSE;
 
     if (buf == NULL || bufSize < 0){
         return -1;
@@ -267,6 +261,8 @@ int llwrite(const unsigned char *buf, int bufSize)
     if (!has_received) return -1;
 
     return (send_count - 6);
+*/
+
 }
 
 ////////////////////////////////////////////////
@@ -284,6 +280,7 @@ int llread(unsigned char *packet)
     if (packet == NULL){
         return 0;
     }
+    
     unsigned char flag_received[1];
     int frames_received = read(fd,flag_received, 1);
     set_stateR(fd,flag_received[0]);
@@ -298,109 +295,75 @@ int llread(unsigned char *packet)
     printf("%d bytes accepted written\n", bytes_sent);
     memcpy(packet, &destuffed, sizeof(packet) + 6);
     return (frames_received+4);
+    
+    
 }
 ////////////////////////////////////////////////
 // LLCLOSE
 ////////////////////////////////////////////////
+
+
+void llclose_t()
+{
+    unsigned char closeFrame[5];
+
+    closeFrame[0] = FLAG;
+    closeFrame[1] = A;
+    closeFrame[2] = C_DISC;
+    closeFrame[3] = A ^ C_DISC;
+    closeFrame[4] = FLAG;
+
+    int bytesReceived = 0;
+    int bytesDTransmitted = write(fd,closeFrame, 5);
+
+    printf("%d Bytes in close written\n", bytesDTransmitted);
+    
+    //suposedly state machine
+
+    unsigned char endFrame[5];
+
+    endFrame[0] = FLAG;
+    endFrame[1] = A_RCV;
+    endFrame[2] = UA;
+    endFrame[3] = A_RCV ^ UA;
+    endFrame[4] = FLAG;
+
+    int bytesUATransmitted = write(fd,endFrame,5);
+    printf("%d Bytes in End written\n", bytesUATransmitted);
+
+
+}
+
+void llclose_r()
+{
+    unsigned char closeFrameR[5];
+    closeFrameR[0] = FLAG;
+    closeFrameR[1] = A_RCV;
+    closeFrameR[2] = C_DISC;
+    closeFrameR[3] = A_RCV ^ C_DISC;
+    closeFrameR[4] = FLAG;
+
+    int bytesReceivedR = write (fd, closeFrameR, 5);
+    printf("%d Bytes in closeR written\n", bytesReceivedR);
+    
+}
+
 int llclose(int showStatistics)
 {
 
-    if (role == LlTx){
-       unsigned char* frame_disc[5], frame_ua[5];
-        int num_send_frame = 0;
-        timeout = TRUE;
-        int received_disc = FALSE;
-        ////createAlarm();
-        do{
-            if (write(fd, frame_disc, 5) == -1){
-                return -1;
-            }
-            num_send_frame++;
-            timeout = FALSE;
-            ////alarm(num_send_frame);
-
-            if (read(fd, &frame_disc, 5) == 0){
-                received_disc = TRUE;
-            }
-
-        }while(num_send_frame < numTries|| !timeout); 
-        
-        ////alarm(0);
-
-        if (!received_disc){
-            if (tcsetattr(fd, TCSANOW, &oldtio) == -1){           
-                return -1;
-            }
-            set_stateT(fd, (unsigned char) STOP_);
-            return -1;
-        }   
-        if (write(fd, &frame_ua,5) == -1){
-            //set_stateT(&fd, (unsigned char) STOP_);
-            return -1;
-        }
+    if (showStatistics == 1){
+        printf("====Statistics====\n");
+        printf("Number of retransmitted frames: %d\n", total_retransmits);
+        printf("Number of received I frames: %d\n", total_received_frames);
+        printf("Number of timeouts: %d\n", total_timeouts);
+        printf("Number of sent REJs: %d\n", total_rej);
     }
 
-    else if (role == LlRx){
-        unsigned char* frame_disc[5], frame_ua[5];
-        int num_send_frame = 0;
-        timeout = FALSE;
-        int read_r;
-        //createAlarm();
-
-        do{
-            read_r = read(fd,&frame_disc, 5);
-            if (read_r == -1){continue;}
-            if (*frame_disc[1] == A_RCV && *frame_disc[2] == C_RCV){
-                if (*frame_disc == NULL){
-                    total_received_frames++;
-                }
-                if(write(fd, frame_disc, 5) == -1){
-                    
-                    return -1;
-                } 
-                total_received_frames++;
-                continue;               
-            }
-            if(timeout == TRUE){
-                //alarm(0);
-                return -1;
-            }
-
-        } while(!timeout);
-
-        do{
-
-            if (timeout && num_send_frame < numTries){
-                if (write(fd, frame_disc,5) == -1){
-                    return -1;
-                }
-            }
-            if (num_send_frame != 0){
-                total_timeouts++;
-                total_retransmits++;
-            }
-            num_send_frame++;
-            timeout = FALSE;
-            //alarm(timeout);
-            read(fd,&frame_ua, 5);
-        }while(num_send_frame < numTries);
-
-        //alarm(0);
-    }
-    
-    else{return -1;}
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1){
         return -1;
     }
-    //set_stateT(&fd, STOP_);
-
-    if (showStatistics == 1){
-            printf("====Statistics====\n");
-            printf("Number of retransmitted frames: %d\n", total_retransmits);
-            printf("Number of received I frames: %d\n", total_received_frames);
-            printf("Number of timeouts: %d\n", total_timeouts);
-            printf("Number of sent REJs: %d\n", total_rej);
-        }
-
+     
+    close(fd);
+     
     return 1;
 }
