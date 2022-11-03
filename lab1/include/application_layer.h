@@ -15,4 +15,6 @@
 void applicationLayer(const char *serialPort, const char *role, int baudRate,
                       int nTries, int timeout, const char *filename);
 
+unsigned char* createControl(unsigned char flag, int fSize, int num_octet);
+
 #endif // _APPLICATION_LAYER_H_

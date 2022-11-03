@@ -13,8 +13,10 @@
 #define UA 0x07
 #define RR 0x05
 #define C_DISC 0x0B
+#define ST_CTRL 0x02
+#define END_CTRL 0x03
 #define STUFFER 0x20
-#define MAX_SIZE 256
+#define MAX_SIZE 128
 #define TRUE 1
 #define FALSE 0
 
