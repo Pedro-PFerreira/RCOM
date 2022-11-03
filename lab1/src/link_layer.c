@@ -52,6 +52,10 @@ void llopen_t(){
     printf("Sent: %x %x %x %x %x\n", set_message[0], set_message[1],set_message[2],set_message[3],set_message[4]);
     int bytes = write(fd, set_message, 5);
 
+    if (bytes == -1){
+        return;
+    }
+
     unsigned char ua_message[5];
     bytes = read(fd, ua_message, 5);
     printf("Received: %x %x %x %x %x\n", ua_message[0], ua_message[1],ua_message[2],ua_message[3],ua_message[4]);
@@ -178,7 +182,8 @@ int llwrite(const unsigned char *buf, int bufSize, unsigned char *frame_to_send)
 
     unsigned char BCC2 = 0x00;
     for (int i = 4; i < 4 + bufSize; i++){
-        buf_to_stuff[i-4] = stuff(buf[i-4]);
+        unsigned char temp_packet = buf[i-4];
+        buf_to_stuff[i-4] = stuff(&temp_packet);
         BCC2 ^= buf_to_stuff[i-4];
     }
 
@@ -194,7 +199,7 @@ int llwrite(const unsigned char *buf, int bufSize, unsigned char *frame_to_send)
         frame_to_send[i-4] = buf_to_stuff[i-4];
     }
 
-    int bytes_written = write(fd, frame_to_send, buf_to_stuff + 3);
+    int bytes_written = write(fd, frame_to_send, sizeof(buf_to_stuff) + 3);
 
     if (bytes_written < 0){
         return -1;
@@ -313,7 +318,7 @@ void llclose_t()
     closeFrame[3] = A ^ C_DISC;
     closeFrame[4] = FLAG;
 
-    int bytesReceived = 0;
+    //int bytesReceived = 0;
     int bytesDTransmitted = write(fd,closeFrame, 5);
 
     printf("%d Bytes in close written\n", bytesDTransmitted);
