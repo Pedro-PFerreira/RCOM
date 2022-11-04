@@ -206,68 +206,6 @@ int llwrite(const unsigned char *buf, int bufSize, unsigned char *frame_to_send)
     }
     S = S^1;
     return bytes_written;
-
-/*
-
-int has_received = FALSE;
-
-    if (buf == NULL || bufSize < 0){
-        return -1;
-    }
-
-    if (bufSize > MAX_PAYLOAD_SIZE){
-        return -1;
-    }
-
-    (void)signal(SIGALRM, alarmHandler);
-
-    unsigned char buf1[bufSize + 7];
-
-    for (int i = 4; i < 4+ bufSize; i++){
-        buf1[i-4] = buf[i-4];
-    }
-
-    int BCC_2 = 0x00;  
-    buf1[0] = FLAG_RCV;
-    buf1[1] = A_T;
-    buf1[2] = C_T;
-    buf1[3] = A_T ^ C_T;
-    buf1[bufSize + 3] = BCC_2; 
-    buf1[bufSize + 4] = FLAG_RCV;
-    for (int i = 4; i < 4 + bufSize; i++){
-        BCC_2 = BCC_2 ^ buf1[i-1];
-        printf("%x\n", buf1[i-4]);
-    }
-    for (int i = 4; i < bufSize; i++){
-        buf1[i] = stuff(&buf1[i]);
-
-    }
-    int send_count = 0;
-    unsigned char flag_received[1] = {0};
-
-
-    while(!has_received && alarmCount < 4){
-
-        send_count = write(fd, buf1, bufSize + 6);
-
-        sleep(1);
-        alarm(3);
-
-        alarmEnabled = TRUE;
-
-        while (state != STOP_){
-            state = START; 
-            flag_received[0] = read(fd, flag_received, 1);
-            set_stateT(state, flag_received[0]);
-        }
-
-    }
-
-    if (!has_received) return -1;
-
-    return (send_count - 6);
-*/
-
 }
 
 ////////////////////////////////////////////////
@@ -288,8 +226,7 @@ int llread(unsigned char *packet)
     
     unsigned char flag_received[1];
     int frames_received = read(fd,flag_received, 1);
-    set_stateR(fd,flag_received[0]);
-
+    
     unsigned char accepted[5];
     accepted[0] = FLAG;
     accepted[1] = A_RCV;
