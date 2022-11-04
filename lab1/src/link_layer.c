@@ -40,9 +40,10 @@ int total_received_frames = 0;
 int total_frames_sent = 0;
 
 int S = 0;
-
+unsigned char set_message[5];
+unsigned char ua_message[5];
 void llopen_t(){
-    unsigned char set_message[5];
+
     set_message[0] = FLAG_RCV;
     set_message[1] = A_T;
     set_message[2] = SET;
@@ -56,7 +57,6 @@ void llopen_t(){
         return;
     }
 
-    unsigned char ua_message[5];
     bytes = read(fd, ua_message, 5);
     printf("Received: %x %x %x %x %x\n", ua_message[0], ua_message[1],ua_message[2],ua_message[3],ua_message[4]);
 
@@ -64,12 +64,12 @@ void llopen_t(){
 
 void llopen_r()
 {
-    unsigned char set_message[5];
+    //unsigned char set_message[5];
     read(fd, set_message, 5);
 
     printf("Received: %x %x %x %x %x\n", set_message[0], set_message[1],set_message[2],set_message[3],set_message[4]);
 
-    unsigned char ua_message[5];
+    //unsigned char ua_message[5];
     ua_message[0] = FLAG_RCV;
     ua_message[1] = A_RCV;
     ua_message[2] = UA;
@@ -272,7 +272,6 @@ void llclose_t()
 
     int bytesUATransmitted = write(fd,endFrame,5);
     printf("%d Bytes in End written\n", bytesUATransmitted);
-
 
 }
 
